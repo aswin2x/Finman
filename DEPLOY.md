@@ -114,10 +114,17 @@ Then:
 
 ```bash
 cd mobile
-npx eas login          # your expo.dev account
-npx eas build:configure
+npx eas login                                    # your expo.dev account
 npx eas build --platform android --profile apk
 ```
+
+`eas-cli` is already a dev dependency of the project, so `npx eas` resolves to
+it. There is no `eas` package on npm; asking for one is the usual cause of
+`could not determine executable to run`.
+
+The first build asks whether to generate an Android keystore. Say yes. Expo
+keeps it, and every later build is signed with the same key, which is what
+lets a new APK install over the old one instead of being rejected.
 
 The build runs on Expo's servers and takes 10 to 15 minutes. It ends with a
 download link for `finman.apk`.
