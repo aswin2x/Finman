@@ -69,7 +69,11 @@ def delete_category(category_id: uuid.UUID, db: DB, user: CurrentUser) -> Messag
     category.deleted_at = datetime.now(timezone.utc)
     db.commit()
     if in_use:
-        return Message(detail=f"Category removed. {in_use} transactions are now uncategorised.")
+        # The existing entries keep the category so past months still read
+        # correctly; it simply stops being offered for new ones.
+        return Message(
+            detail=f"Category removed. {in_use} existing entries keep it, and it is no longer offered for new ones."
+        )
     return Message(detail="Category removed")
 
 

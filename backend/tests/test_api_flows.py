@@ -155,6 +155,15 @@ class TestSharedAndPersonalAccess:
         assert client.get("/api/v1/dashboard", headers=auth).json()["expenses"] == 3000.0
         assert client.get("/api/v1/dashboard", headers=auth_salini).json()["expenses"] == 0.0
 
+    def test_another_members_private_category_cannot_be_used(self, client, auth, auth_salini):
+        private = client.post(
+            "/api/v1/categories",
+            headers=auth_salini,
+            json={"name": "Private", "kind": "expense", "is_personal": True},
+        ).json()
+        r = make_expense(client, auth, 500, "Attempt", private["id"])
+        assert r.status_code == 400
+
     def test_another_members_personal_record_is_not_fetchable(self, client, auth, auth_salini):
         created = make_expense(client, auth, 3000, "Private", scope="personal").json()
         assert client.get(f"/api/v1/transactions/{created['id']}", headers=auth_salini).status_code == 404
@@ -249,6 +258,35 @@ class TestBudgets:
         assert o["total_limit"] == 10000.0
         assert o["total_spent"] == 3000.0
         assert o["unbudgeted_spend"] == 1200.0
+
+    def test_a_multi_month_budget_reports_only_this_months_spend(self, client, auth, categories):
+        """A budget spanning months must not report its whole run as this month."""
+        year_start = START.replace(month=1, day=1)
+        year_end = START.replace(month=12, day=31)
+        client.post(
+            "/api/v1/budgets",
+            headers=auth,
+            json={
+                "name": "Transport", "limit_amount": 90000, "period_type": "custom",
+                "period_start": iso(year_start), "period_end": iso(year_end),
+                "category_id": str(categories["transport"].id),
+            },
+        )
+        for offset in (2, 1, 0):
+            month = (START - timedelta(days=1)).replace(day=1) if offset else START
+            day = iso(min(month.replace(day=10), TODAY)) if offset == 0 else iso(START - timedelta(days=20 * offset))
+            client.post(
+                "/api/v1/transactions",
+                headers=auth,
+                json={
+                    "type": "expense", "amount": 3000, "title": "Fuel", "occurred_on": day,
+                    "payment_method": "card", "scope": "shared", "category_id": str(categories["transport"].id),
+                },
+            )
+
+        overview = client.get("/api/v1/budgets/overview", headers=auth).json()
+        month_expenses = client.get("/api/v1/transactions/summary", headers=auth).json()["expenses"]
+        assert overview["total_spent"] <= month_expenses
 
     def test_overlapping_budgets_do_not_double_count_the_same_spend(self, client, auth, auth_salini, categories):
         """A shared and a personal budget can cover one category.
@@ -550,6 +588,43 @@ class TestLoans:
         ).json()
         assert after["outstanding_balance"] == 20420.0
 
+    def test_changing_a_payment_type_keeps_cash_flow_in_step(self, client, auth):
+        """A charge posts no expense; a real payment does. Editing must follow."""
+        card = self._loan(
+            client, auth, name="Card", debt_type="credit_card", outstanding_balance=10000, emi_amount=0
+        ).json()
+        after = client.post(
+            f"/api/v1/loans/{card['id']}/payments",
+            headers=auth,
+            json={"amount": 2000, "paid_on": in_month(7), "payment_type": "charge"},
+        ).json()
+        payment_id = after["payments"][0]["id"]
+        assert client.get("/api/v1/dashboard", headers=auth).json()["expenses"] == 0.0
+
+        client.patch(
+            f"/api/v1/loans/{card['id']}/payments/{payment_id}", headers=auth, json={"payment_type": "extra"}
+        )
+        assert client.get("/api/v1/dashboard", headers=auth).json()["expenses"] == 2000.0
+
+        client.patch(
+            f"/api/v1/loans/{card['id']}/payments/{payment_id}", headers=auth, json={"payment_type": "charge"}
+        )
+        assert client.get("/api/v1/dashboard", headers=auth).json()["expenses"] == 0.0
+
+    def test_removing_a_payment_removes_its_entry_for_good(self, client, auth):
+        """The entry exists only because the payment does; it must not linger."""
+        loan = self._loan(client, auth, outstanding_balance=10000, emi_amount=1000).json()
+        after = client.post(
+            f"/api/v1/loans/{loan['id']}/payments",
+            headers=auth,
+            json={"amount": 1000, "paid_on": in_month(7), "payment_type": "emi"},
+        ).json()
+        txn_id = client.get("/api/v1/transactions", headers=auth).json()["items"][0]["id"]
+
+        client.delete(f"/api/v1/loans/{loan['id']}/payments/{after['payments'][0]['id']}", headers=auth)
+        assert client.post(f"/api/v1/transactions/{txn_id}/restore", headers=auth).status_code == 404
+        assert client.get("/api/v1/dashboard", headers=auth).json()["expenses"] == 0.0
+
     def test_summary_sums_active_debts_only(self, client, auth):
         self._loan(client, auth)
         self._loan(client, auth, name="Closed one", outstanding_balance=0, status="closed", emi_amount=5000)
@@ -702,8 +777,12 @@ class TestForecast:
             assert len(f["months"]) == horizon
 
     def test_emi_is_projected_separately_from_average_expenses(self, client, auth, categories):
-        """Historical EMI must not be counted twice in the projection."""
-        client.post(
+        """Historical EMI must not be counted twice in the projection.
+
+        The EMI is recorded as a loan payment, which posts its own linked
+        expense. That link is what excludes it from the expense average.
+        """
+        loan = client.post(
             "/api/v1/loans",
             headers=auth,
             json={
@@ -712,28 +791,24 @@ class TestForecast:
                 "due_day": 5, "next_due_date": iso(START.replace(day=5)),
                 "category_id": str(categories["emi"].id), "scope": "shared",
             },
-        )
+        ).json()
         last_month = (START - timedelta(days=1)).replace(day=5)
         client.post(
-            "/api/v1/transactions",
+            f"/api/v1/loans/{loan['id']}/payments",
             headers=auth,
-            json={
-                "type": "expense", "amount": 10000, "title": "Car EMI payment",
-                "occurred_on": iso(last_month), "payment_method": "bank", "scope": "shared",
-                "category_id": str(categories["emi"].id),
-            },
+            json={"amount": 10000, "paid_on": iso(last_month), "payment_type": "emi"},
         )
         client.post(
             "/api/v1/transactions",
             headers=auth,
             json={
-                "type": "expense", "amount": 5000, "title": "Groceries",
+                "type": "expense", "amount": 15000, "title": "Groceries",
                 "occurred_on": iso(last_month), "payment_method": "upi", "scope": "shared",
                 "category_id": str(categories["groceries"].id),
             },
         )
         f = client.post("/api/v1/forecast", headers=auth, json={"horizon_months": 3}).json()
-        assert f["baseline_monthly_expense"] == 5000.0
+        assert f["baseline_monthly_expense"] == 5000.0  # 15000 over three months
         assert f["baseline_monthly_emi"] == 10000.0
 
     def test_emi_stops_once_a_loan_is_projected_to_close(self, client, auth, categories):
@@ -839,6 +914,49 @@ class TestImportExport:
         client.delete(f"/api/v1/transactions/import/{batch}", headers=auth)
         assert client.get("/api/v1/transactions", headers=auth).json()["total"] == 0
 
+    def test_undo_import_cannot_reach_another_members_private_rows(self, client, auth, auth_salini):
+        """An import id must not be a way around record visibility."""
+        private = (
+            b"date,type,title,amount,category,payment_method,scope,notes\n"
+            b"2026-09-15,expense,Private,250,Dining,cash,personal,\n"
+        )
+        batch = client.post(
+            "/api/v1/transactions/import", headers=auth, files={"file": ("t.csv", private, "text/csv")}
+        ).json()["batch_id"]
+
+        client.delete(f"/api/v1/transactions/import/{batch}", headers=auth_salini)
+        assert client.get("/api/v1/transactions", headers=auth).json()["total"] == 1
+
+    def test_import_does_not_attach_another_members_private_category(self, client, auth, auth_salini):
+        client.post(
+            "/api/v1/categories",
+            headers=auth_salini,
+            json={"name": "Therapy", "kind": "expense", "is_personal": True},
+        )
+        csv = (
+            b"date,type,title,amount,category,payment_method,scope,notes\n"
+            b"2026-09-15,expense,Session,900,Therapy,cash,shared,\n"
+        )
+        client.post("/api/v1/transactions/import", headers=auth, files={"file": ("t.csv", csv, "text/csv")})
+
+        row = client.get("/api/v1/transactions", headers=auth).json()["items"][0]
+        visible = {c["name"] for c in client.get("/api/v1/categories", headers=auth).json()}
+        assert row["category"] is None or row["category"]["name"] in visible
+
+    def test_an_imported_income_category_is_created_as_income(self, client, auth):
+        csv = (
+            b"date,type,title,amount,category,payment_method,scope,notes\n"
+            b"2026-09-15,income,Bonus,5000,Bonus Pay,bank,shared,\n"
+        )
+        client.post("/api/v1/transactions/import", headers=auth, files={"file": ("t.csv", csv, "text/csv")})
+        row = client.get("/api/v1/transactions", headers=auth).json()["items"][0]
+        assert row["category"]["kind"] == "income"
+        # The category must remain usable when the entry is edited later.
+        r = client.patch(
+            f"/api/v1/transactions/{row['id']}", headers=auth, json={"category_id": row["category_id"]}
+        )
+        assert r.status_code == 200
+
     def test_imported_rows_stay_editable(self, client, auth):
         client.post("/api/v1/transactions/import", headers=auth, files={"file": ("t.csv", self.CSV, "text/csv")})
         row = client.get("/api/v1/transactions", headers=auth).json()["items"][0]
@@ -891,6 +1009,11 @@ class TestDashboardShape:
         d = client.get("/api/v1/dashboard", headers=auth).json()
         assert d["available_balance"] == 0.0 and d["income"] == 0.0 and d["expenses"] == 0.0
         assert d["is_demo_data"] is False
+
+    def test_an_impossible_month_is_rejected_not_crashed(self, client, auth):
+        for path in ("/api/v1/transactions/summary", "/api/v1/dashboard", "/api/v1/budgets/overview"):
+            assert client.get(f"{path}?month=2026-13", headers=auth).status_code == 422
+            assert client.get(f"{path}?month=2026-00", headers=auth).status_code == 422
 
     def test_cash_flow_covers_every_day_of_the_month(self, client, auth):
         d = client.get("/api/v1/dashboard", headers=auth).json()

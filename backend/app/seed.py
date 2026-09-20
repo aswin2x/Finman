@@ -310,19 +310,30 @@ def seed_demo(db, aswin: User, salini: User, cats: dict[str, Category]) -> None:
                 day_cursor += 2
                 person_index += 1
 
-        # EMI outflows, recorded as payments so loan balances stay consistent.
+        # EMI outflows, recorded as real loan payments with their linked
+        # expense. The link is what marks them as debt repayment, so the
+        # forecast can project EMI from live balances without counting it
+        # twice through the historical expense average.
         for loan in (car, bajaj, personal):
             paid_on = safe_day(m_start.year, m_start.month, loan.due_day)
             if paid_on > limit_day:
                 continue
-            db.add(
-                Transaction(
-                    type="expense", amount=loan.emi_amount, title=f"{loan.name} payment",
-                    occurred_on=paid_on, payment_method="bank", scope="shared",
-                    category_id=cat("EMI & Loans"), user_id=loan.user_id,
-                    is_imported=True, import_batch_id=DEMO_BATCH,
-                )
+            payment = LoanPayment(
+                loan_id=loan.id, amount=loan.emi_amount, paid_on=paid_on,
+                payment_type="emi", paid_by_user_id=loan.user_id,
             )
+            db.add(payment)
+            db.flush()
+            txn = Transaction(
+                type="expense", amount=loan.emi_amount, title=f"{loan.name} payment",
+                occurred_on=paid_on, payment_method="bank", scope="shared",
+                category_id=cat("EMI & Loans"), user_id=loan.user_id,
+                loan_payment_id=payment.id,
+                is_imported=True, import_batch_id=DEMO_BATCH,
+            )
+            db.add(txn)
+            db.flush()
+            payment.transaction_id = txn.id
 
     db.commit()
 

@@ -227,12 +227,36 @@ def update_payment(
         loan.months_paid += 1
     _refresh_status(loan)
 
-    if payment.transaction_id:
-        txn = db.get(Transaction, payment.transaction_id)
+    # Keep the linked expense in step with the payment. Changing the type to or
+    # from a charge has to create or remove that entry, or cash flow drifts
+    # away from the balance.
+    txn = db.get(Transaction, payment.transaction_id) if payment.transaction_id else None
+    if payment.payment_type == "charge":
         if txn is not None:
-            txn.amount = money(payment.amount)
-            txn.occurred_on = payment.paid_on
-            txn.notes = payment.note
+            db.delete(txn)
+            payment.transaction_id = None
+    elif txn is not None:
+        txn.amount = money(payment.amount)
+        txn.occurred_on = payment.paid_on
+        txn.notes = payment.note
+        txn.deleted_at = None
+    else:
+        txn = Transaction(
+            type="expense",
+            amount=money(payment.amount),
+            title=f"{loan.name} payment",
+            notes=payment.note,
+            occurred_on=payment.paid_on,
+            payment_method="bank",
+            scope=loan.scope,
+            category_id=loan.category_id,
+            user_id=user.id,
+            loan_payment_id=payment.id,
+        )
+        db.add(txn)
+        db.flush()
+        payment.transaction_id = txn.id
+
     db.commit()
     db.refresh(loan)
     return _detail(db, loan)
@@ -250,10 +274,12 @@ def delete_payment(loan_id: uuid.UUID, payment_id: uuid.UUID, db: DB, user: Curr
         loan.months_paid -= 1
     _refresh_status(loan)
 
+    # The entry exists only because the payment does, so it goes with it
+    # rather than lingering as a restorable row with nothing behind it.
     if payment.transaction_id:
         txn = db.get(Transaction, payment.transaction_id)
         if txn is not None:
-            txn.deleted_at = datetime.now(timezone.utc)
+            db.delete(txn)
     db.delete(payment)
     db.commit()
     db.refresh(loan)

@@ -21,7 +21,7 @@ router = APIRouter(prefix="/budgets", tags=["budgets"])
 def list_budgets(
     db: DB,
     user: CurrentUser,
-    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    month: str | None = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
 ) -> list[BudgetProgress]:
     start, end = month_bounds(_anchor(month))
     rows = db.scalars(
@@ -35,14 +35,15 @@ def list_budgets(
         .order_by(Budget.name)
     ).all()
     today = date.today()
-    return [BudgetProgress(**budget_progress(db, user.id, b, today)) for b in rows]
+    # Scoped to the month on screen, so the rows agree with the headline.
+    return [BudgetProgress(**budget_progress(db, user.id, b, today, (start, end))) for b in rows]
 
 
 @router.get("/overview", response_model=BudgetOverview)
 def overview(
     db: DB,
     user: CurrentUser,
-    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    month: str | None = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
 ) -> BudgetOverview:
     start, end = month_bounds(_anchor(month))
     return BudgetOverview(**budget_overview(db, user.id, start, end, date.today()))
@@ -96,8 +97,8 @@ def delete_budget(budget_id: uuid.UUID, db: DB, user: CurrentUser) -> Message:
 def roll_forward(
     db: DB,
     user: CurrentUser,
-    from_month: str = Query(pattern=r"^\d{4}-\d{2}$"),
-    to_month: str = Query(pattern=r"^\d{4}-\d{2}$"),
+    from_month: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
+    to_month: str = Query(pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
 ) -> list[Budget]:
     """Copy a month's budgets into a later month.
 

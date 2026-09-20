@@ -169,10 +169,11 @@ def delete_payment(
     payment = db.get(SettlementPayment, payment_id)
     if payment is None or payment.settlement_id != row.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Payment not found")
+    # Removed outright with the payment, so no orphaned entry can be restored.
     if payment.transaction_id:
         txn = db.get(Transaction, payment.transaction_id)
         if txn is not None:
-            txn.deleted_at = datetime.now(timezone.utc)
+            db.delete(txn)
     db.delete(payment)
     db.flush()
     row.status = settlement_status(row.total_amount, settlement_paid_total(db, row.id))

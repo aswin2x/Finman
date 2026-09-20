@@ -46,18 +46,13 @@ def baseline_monthly_expense(db: Session, user_id: uuid.UUID, today: date) -> De
     return _average_recent(db, user_id, today, "expense")
 
 
-def _debt_category_ids(db: Session, user_id: uuid.UUID) -> set[uuid.UUID]:
-    rows = db.scalars(
-        select(Loan.category_id).where(
-            Loan.deleted_at.is_(None),
-            visibility_filter(Loan, user_id),
-            Loan.category_id.is_not(None),
-        )
-    ).all()
-    return {r for r in rows if r is not None}
-
-
 def _monthly_expense_excluding_debt(db: Session, user_id: uuid.UUID, start: date, end: date) -> Decimal:
+    """Expenses for a month, less anything that was a recorded debt payment.
+
+    Only entries actually linked to a loan payment are excluded. Excluding a
+    whole category would also drop ordinary spending that happens to share it,
+    for instance a bank charge filed under the same heading as the EMIs.
+    """
     from sqlalchemy import func
 
     from app.models import Transaction
@@ -70,15 +65,14 @@ def _monthly_expense_excluding_debt(db: Session, user_id: uuid.UUID, start: date
         Transaction.occurred_on <= end,
         Transaction.loan_payment_id.is_(None),
     )
-    debt_categories = _debt_category_ids(db, user_id)
-    if debt_categories:
-        stmt = stmt.where(
-            (Transaction.category_id.is_(None)) | (Transaction.category_id.not_in(debt_categories))
-        )
     return money(db.scalar(stmt))
 
 
 def _average_recent(db: Session, user_id: uuid.UUID, today: date, kind: str) -> Decimal:
+    """Average over the recent months, counting a quiet month as a real zero.
+
+    Dropping empty months would report a single busy month as the norm.
+    """
     totals: list[Decimal] = []
     for offset in range(1, HISTORY_MONTHS + 1):
         anchor = today.replace(day=1) - relativedelta(months=offset)
@@ -88,15 +82,17 @@ def _average_recent(db: Session, user_id: uuid.UUID, today: date, kind: str) -> 
             totals.append(income)
         else:
             totals.append(_monthly_expense_excluding_debt(db, user_id, start, end))
-    considered = [t for t in totals if t > ZERO]
-    if not considered:
-        # Fall back to the current month so a brand-new account is not zeroed.
-        start, end = month_bounds(today)
-        if kind == "income":
-            income, _ = totals_between(db, user_id, start, end)
-            return income
-        return _monthly_expense_excluding_debt(db, user_id, start, end)
-    return money(sum(considered, ZERO) / Decimal(len(considered)))
+
+    if any(t > ZERO for t in totals):
+        return money(sum(totals, ZERO) / Decimal(len(totals)))
+
+    # No history at all, so fall back to the month in progress rather than
+    # projecting zero for an account that is simply new.
+    start, end = month_bounds(today)
+    if kind == "income":
+        income, _ = totals_between(db, user_id, start, end)
+        return income
+    return _monthly_expense_excluding_debt(db, user_id, start, end)
 
 
 def _emi_schedule(db: Session, user_id: uuid.UUID, months: int, today: date) -> list[dict]:

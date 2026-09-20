@@ -31,7 +31,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 def dashboard(
     db: DB,
     user: CurrentUser,
-    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$"),
+    month: str | None = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$"),
     range: str = Query(default="month", pattern="^(month|3m|6m|12m)$"),
 ) -> DashboardSummary:
     settings = get_settings()

@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Category, Transaction
+from app.services.access import category_visibility_filter
 from app.services.finance import money
 
 COLUMNS = ["date", "type", "title", "amount", "category", "payment_method", "scope", "notes"]
@@ -115,26 +116,40 @@ def preview_rows(rows: list[dict]) -> tuple[list[dict], list[dict]]:
     return valid, errors
 
 
-def resolve_categories(db: Session, names: set[str], user_id: uuid.UUID) -> dict[str, uuid.UUID]:
-    """Match category names case-insensitively, creating any that are missing."""
-    wanted = {n.strip().lower() for n in names if n and n.strip()}
-    if not wanted:
+def resolve_categories(db: Session, wanted: set[tuple[str, str]], user_id: uuid.UUID) -> dict[tuple[str, str], uuid.UUID]:
+    """Match category names case-insensitively, creating any that are missing.
+
+    Keyed by (name, kind) so an income row never lands in an expense category.
+    Only categories the importer can see are matched; another member's personal
+    category is invisible here and a shared one is created instead.
+    """
+    pairs = {(name.strip().lower(), kind) for name, kind in wanted if name and name.strip()}
+    if not pairs:
         return {}
-    existing = db.scalars(select(Category).where(Category.deleted_at.is_(None))).all()
-    mapping = {c.name.strip().lower(): c.id for c in existing}
-    for name in wanted - set(mapping):
-        category = Category(name=name.title(), kind="expense", color="#8A8F98", icon="tag", owner_id=None)
+
+    existing = db.scalars(
+        select(Category).where(
+            Category.deleted_at.is_(None),
+            category_visibility_filter(Category, user_id),
+        )
+    ).all()
+    mapping = {(c.name.strip().lower(), c.kind): c.id for c in existing}
+
+    for name, kind in pairs - set(mapping):
+        category = Category(name=name.title(), kind=kind, color="#8A8F98", icon="tag", owner_id=None)
         db.add(category)
         db.flush()
-        mapping[name] = category.id
+        mapping[(name, kind)] = category.id
     return mapping
 
 
 def commit_rows(db: Session, rows: list[dict], user_id: uuid.UUID) -> tuple[int, str]:
     batch_id = uuid.uuid4().hex[:16]
-    mapping = resolve_categories(db, {r["category"] for r in rows if r["category"]}, user_id)
+    mapping = resolve_categories(
+        db, {(r["category"], r["type"]) for r in rows if r["category"]}, user_id
+    )
     for row in rows:
-        category_id = mapping.get(row["category"].strip().lower()) if row["category"] else None
+        category_id = mapping.get((row["category"].strip().lower(), row["type"])) if row["category"] else None
         db.add(
             Transaction(
                 type=row["type"],

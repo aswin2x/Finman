@@ -32,8 +32,28 @@ def _spend_for(
     return money(db.scalar(stmt))
 
 
-def budget_progress(db: Session, user_id: uuid.UUID, budget: Budget, today: date) -> dict:
-    spent = _spend_for(db, user_id, budget.period_start, budget.period_end, budget.category_id)
+def budget_progress(
+    db: Session,
+    user_id: uuid.UUID,
+    budget: Budget,
+    today: date,
+    window: tuple[date, date] | None = None,
+) -> dict:
+    """Progress for one budget.
+
+    `window` narrows the spend to a period being viewed, so a budget spanning
+    several months reports what was spent in the month on screen rather than
+    its whole run. Without it the budget's own period is used.
+    """
+    start = budget.period_start
+    end = budget.period_end
+    if window is not None:
+        start = max(start, window[0])
+        end = min(end, window[1])
+        if end < start:
+            start, end = window
+
+    spent = _spend_for(db, user_id, start, end, budget.category_id)
     effective_limit = money(budget.limit_amount + (budget.rollover_amount if budget.rollover else ZERO))
     remaining = money(effective_limit - spent)
     used = pct(spent, effective_limit)
@@ -72,7 +92,8 @@ def budget_overview(db: Session, user_id: uuid.UUID, start: date, end: date, tod
     category_budgets = [b for b in budgets if b.category_id is not None]
     overall_budgets = [b for b in budgets if b.category_id is None]
 
-    progress = [budget_progress(db, user_id, b, today) for b in category_budgets]
+    window = (start, end)
+    progress = [budget_progress(db, user_id, b, today, window) for b in category_budgets]
 
     total_spent_period = _spend_for(db, user_id, start, end, None)
 
@@ -89,7 +110,7 @@ def budget_overview(db: Session, user_id: uuid.UUID, start: date, end: date, tod
         budgeted_spend = money(budgeted_spend + entry["spent"])
 
     if overall_budgets:
-        overall = [budget_progress(db, user_id, b, today) for b in overall_budgets]
+        overall = [budget_progress(db, user_id, b, today, window) for b in overall_budgets]
         total_limit = money(sum((o["effective_limit"] for o in overall), ZERO))
         total_spent = total_spent_period
     else:

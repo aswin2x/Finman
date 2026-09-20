@@ -178,24 +178,49 @@ class TestForecastService:
         result = build_forecast(db, aswin.id, TODAY, 3)
         assert result["baseline_monthly_income"] == Decimal("71000.00")
 
-    def test_emi_expenses_are_excluded_from_the_expense_baseline(self, db, users, categories):
+    def test_recorded_debt_payments_are_excluded_from_the_expense_baseline(self, db, users, categories):
+        """EMI is projected from live balances, so its history must not also count.
+
+        The exclusion follows the link to the payment, not the category, so
+        ordinary spending filed under the same heading still counts.
+        """
+        from app.models import LoanPayment
+
         aswin, _ = users
         last_month = START - relativedelta(months=1)
-        db.add(
-            Loan(
-                name="Car EMI", debt_type="loan", principal_amount=Decimal("500000"),
-                outstanding_balance=Decimal("100000"), emi_amount=Decimal("10000"),
-                due_day=5, next_due_date=START.replace(day=5),
-                category_id=categories["emi"].id, user_id=aswin.id, scope="shared",
-            )
+        loan = Loan(
+            name="Car EMI", debt_type="loan", principal_amount=Decimal("500000"),
+            outstanding_balance=Decimal("100000"), emi_amount=Decimal("10000"),
+            due_day=5, next_due_date=START.replace(day=5),
+            category_id=categories["emi"].id, user_id=aswin.id, scope="shared",
         )
+        db.add(loan)
         db.commit()
-        add_expense(db, aswin, 10000, last_month, categories["emi"], title="Car EMI payment")
+
+        payment = LoanPayment(
+            loan_id=loan.id, amount=Decimal("10000"), paid_on=last_month.replace(day=5),
+            payment_type="emi", paid_by_user_id=aswin.id,
+        )
+        db.add(payment)
+        db.commit()
+        add_expense(
+            db, aswin, 10000, last_month.replace(day=5), categories["emi"],
+            title="Car EMI payment", loan_payment_id=payment.id,
+        )
+        # Ordinary spending in the same category is still ordinary spending.
+        add_expense(db, aswin, 1500, last_month, categories["emi"], title="Loan processing fee")
         add_expense(db, aswin, 4000, last_month, categories["groceries"])
 
         result = build_forecast(db, aswin.id, TODAY, 3)
-        assert result["baseline_monthly_expense"] == Decimal("4000.00")
+        assert result["baseline_monthly_expense"] == Decimal("1833.33")  # (5500 + 0 + 0) / 3
         assert result["baseline_monthly_emi"] == Decimal("10000.00")
+
+    def test_a_quiet_month_counts_as_zero_in_the_average(self, db, users, categories):
+        """One busy month among three is not the monthly norm."""
+        aswin, _ = users
+        add_expense(db, aswin, 30000, START - relativedelta(months=1), categories["groceries"])
+        result = build_forecast(db, aswin.id, TODAY, 3)
+        assert result["baseline_monthly_expense"] == Decimal("10000.00")
 
     def test_projected_balance_compounds_month_on_month(self, db, users):
         aswin, _ = users

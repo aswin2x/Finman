@@ -17,7 +17,7 @@ from app.schemas.transaction import (
     TransactionUpdate,
 )
 from app.services import porting
-from app.services.access import can_edit, visibility_filter
+from app.services.access import can_edit, category_visibility_filter, visibility_filter
 from app.services.analytics import (
     category_breakdown,
     payment_method_breakdown,
@@ -122,7 +122,7 @@ def list_transactions(
 def monthly_summary(
     db: DB,
     user: CurrentUser,
-    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$", description="YYYY-MM, defaults to today"),
+    month: str | None = Query(default=None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="YYYY-MM, defaults to today"),
 ) -> MonthlySummary:
     anchor = _month_anchor(month)
     start, end = month_bounds(anchor)
@@ -159,7 +159,7 @@ def create_transaction(payload: TransactionCreate, db: DB, user: CurrentUser) ->
     data = payload.model_dump()
     owner_id = data.pop("user_id") or user.id
     _validate_owner(db, owner_id)
-    _validate_category(db, data.get("category_id"), data["type"])
+    _validate_category(db, data.get("category_id"), data["type"], user.id)
     txn = Transaction(**data, user_id=owner_id)
     db.add(txn)
     db.commit()
@@ -176,7 +176,7 @@ def update_transaction(
     if "user_id" in data and data["user_id"]:
         _validate_owner(db, data["user_id"])
     if "category_id" in data:
-        _validate_category(db, data["category_id"], data.get("type", txn.type))
+        _validate_category(db, data["category_id"], data.get("type", txn.type), user.id)
     for key, value in data.items():
         setattr(txn, key, value)
     db.commit()
@@ -203,6 +203,7 @@ def restore_transaction(transaction_id: uuid.UUID, db: DB, user: CurrentUser) ->
     txn = db.get(Transaction, transaction_id)
     if txn is None or not can_edit(txn, user.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Transaction not found")
+
     txn.deleted_at = None
     db.commit()
     db.refresh(txn)
@@ -236,8 +237,14 @@ async def import_commit(db: DB, user: CurrentUser, file: UploadFile) -> dict:
 
 @router.delete("/import/{batch_id}", response_model=Message)
 def undo_import(batch_id: str, db: DB, user: CurrentUser) -> Message:
+    # Scoped like every other list query, so an import cannot be used to reach
+    # records the caller is not allowed to see.
     rows = db.scalars(
-        select(Transaction).where(Transaction.import_batch_id == batch_id, Transaction.deleted_at.is_(None))
+        select(Transaction).where(
+            Transaction.import_batch_id == batch_id,
+            Transaction.deleted_at.is_(None),
+            visibility_filter(Transaction, user.id),
+        )
     ).all()
     now = datetime.now(timezone.utc)
     for row in rows:
@@ -324,12 +331,14 @@ def _validate_owner(db: Session, owner_id: uuid.UUID) -> None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown household member")
 
 
-def _validate_category(db: Session, category_id: uuid.UUID | None, txn_type: str) -> None:
+def _validate_category(db: Session, category_id: uuid.UUID | None, txn_type: str, user_id: uuid.UUID) -> None:
     if category_id is None:
         return
     category = db.get(Category, category_id)
     if category is None or category.deleted_at is not None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown category")
+    if category.owner_id is not None and category.owner_id != user_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That category belongs to another member")
     if category.kind != txn_type:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, f"Category {category.name!r} cannot be used for {txn_type} entries"
