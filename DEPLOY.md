@@ -114,13 +114,16 @@ Then:
 
 ```bash
 cd mobile
-npx eas login                                    # your expo.dev account
-npx eas build --platform android --profile apk
+npx eas-cli@latest login                                 # your expo.dev account
+npx eas-cli@latest build --platform android --profile apk
 ```
 
-`eas-cli` is already a dev dependency of the project, so `npx eas` resolves to
-it. There is no `eas` package on npm; asking for one is the usual cause of
-`could not determine executable to run`.
+Note the package name. There is no `eas` package on npm, only `eas-cli`, so
+plain `npx eas` fails with `could not determine executable to run`.
+
+Do not add `eas-cli` to the project's dependencies to shorten that command.
+It pulls in `bunyan`, which pulls in `dtrace-provider`, which needs native
+compilation and fails on Expo's build image during Install dependencies.
 
 The first build asks whether to generate an Android keystore. Say yes. Expo
 keeps it, and every later build is signed with the same key, which is what
@@ -157,8 +160,8 @@ as personal stays private to whoever recorded it.
 
 ## Afterwards
 
-**Changing the app.** Make the change, then `npx eas build --platform android
---profile apk` and reinstall on both phones.
+**Changing the app.** Make the change, then run the build command from step 4
+again and reinstall on both phones.
 
 **Changing the server.** Push to GitHub. Render redeploys on its own. Your
 data is untouched; migrations only add what is missing.
