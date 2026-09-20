@@ -1,7 +1,8 @@
 """Seed the database.
 
-    python -m app.seed             # users + default categories only
-    python -m app.seed --demo      # also loads clearly-tagged demo records
+    python -m app.seed                   # users + default categories only
+    python -m app.seed --demo            # also loads clearly-tagged demo records
+    python -m app.seed --reset-passwords # force both passwords back to config
 
 Demo rows carry `import_batch_id == "demo-seed"`, which the dashboard reports
 as `is_demo_data` and `--clear-demo` removes. Nothing here is hardcoded into
@@ -30,30 +31,31 @@ from app.models import (
     Transaction,
     User,
 )
+from app.models.mixins import utcnow
 from app.services.finance import month_bounds, next_due_after, safe_day
 
 DEMO_BATCH = "demo-seed"
 
 DEFAULT_EXPENSE_CATEGORIES = [
-    ("Housing", "home", "#FF6B4A"),
-    ("Groceries", "cart", "#F2A65A"),
-    ("Transport", "car", "#5B8FF9"),
-    ("Utilities", "bolt", "#9B8AFB"),
-    ("Dining", "cup", "#FF8A65"),
-    ("Entertainment", "play", "#EC4899"),
-    ("Health", "heart", "#34D399"),
-    ("Shopping", "bag", "#FBBF24"),
-    ("EMI & Loans", "bank", "#F87171"),
-    ("Education", "book", "#38BDF8"),
-    ("Personal Care", "spark", "#C084FC"),
-    ("Miscellaneous", "tag", "#8A8F98"),
+    ("Housing", "home", "#8A8A8E"),
+    ("Groceries", "cart", "#8A8A8E"),
+    ("Transport", "car", "#8A8A8E"),
+    ("Utilities", "bolt", "#8A8A8E"),
+    ("Dining", "cup", "#8A8A8E"),
+    ("Entertainment", "play", "#8A8A8E"),
+    ("Health", "heart", "#8A8A8E"),
+    ("Shopping", "bag", "#8A8A8E"),
+    ("EMI & Loans", "bank", "#8A8A8E"),
+    ("Education", "book", "#8A8A8E"),
+    ("Personal Care", "spark", "#8A8A8E"),
+    ("Miscellaneous", "tag", "#8A8A8E"),
 ]
 
 DEFAULT_INCOME_CATEGORIES = [
-    ("Salary", "wallet", "#34D399"),
-    ("Freelance", "laptop", "#5B8FF9"),
-    ("Interest", "percent", "#FBBF24"),
-    ("Other Income", "plus", "#8A8F98"),
+    ("Salary", "wallet", "#8A8A8E"),
+    ("Freelance", "laptop", "#8A8A8E"),
+    ("Interest", "percent", "#8A8A8E"),
+    ("Other Income", "plus", "#8A8A8E"),
 ]
 
 
@@ -61,11 +63,18 @@ def ensure_schema() -> None:
     Base.metadata.create_all(engine)
 
 
-def seed_users(db) -> tuple[User, User]:
+def seed_users(db, reset_passwords: bool = False) -> tuple[User, User]:
+    """Ensure both accounts exist.
+
+    Existing passwords are left alone, because this runs on every deploy and
+    must not undo a password either of them changed in the app. Pass
+    `reset_passwords` to force them back to the configured values, which is
+    the way back in if a password is lost.
+    """
     settings = get_settings()
     pairs = [
-        (settings.user_one_username, settings.user_one_display_name, settings.user_one_password, "#FF6B4A"),
-        (settings.user_two_username, settings.user_two_display_name, settings.user_two_password, "#5B8FF9"),
+        (settings.user_one_username, settings.user_one_display_name, settings.user_one_password, "#0A0A0A"),
+        (settings.user_two_username, settings.user_two_display_name, settings.user_two_password, "#525252"),
     ]
     users: list[User] = []
     for username, display_name, password, color in pairs:
@@ -79,6 +88,13 @@ def seed_users(db) -> tuple[User, User]:
             )
             db.add(user)
             db.flush()
+        elif reset_passwords:
+            user.password_hash = hash_password(password)
+            user.display_name = display_name
+            # Every existing session is retired, so a lost password cannot
+            # leave someone else signed in.
+            for session in user.sessions:
+                session.revoked_at = session.revoked_at or utcnow()
         users.append(user)
     db.commit()
     return users[0], users[1]
@@ -342,11 +358,16 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Seed the Finman database")
     parser.add_argument("--demo", action="store_true", help="load demo household data")
     parser.add_argument("--clear-demo", action="store_true", help="remove demo data")
+    parser.add_argument(
+        "--reset-passwords",
+        action="store_true",
+        help="force both passwords back to the configured values and sign everyone out",
+    )
     args = parser.parse_args()
 
     ensure_schema()
     with SessionLocal() as db:
-        aswin, salini = seed_users(db)
+        aswin, salini = seed_users(db, reset_passwords=args.reset_passwords)
         cats = seed_categories(db)
         if args.clear_demo:
             clear_demo(db)
@@ -357,6 +378,8 @@ def main() -> None:
             clear_demo(db)
             seed_demo(db, aswin, salini, cats)
             print("Demo data loaded and tagged as demo-seed.")
+    if args.reset_passwords:
+        print("Passwords reset to the configured values. All sessions signed out.")
     print(f"Ready. Users: {aswin.display_name}, {salini.display_name}. Categories: {len(cats)}.")
 
 

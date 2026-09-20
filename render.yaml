@@ -1,0 +1,51 @@
+# Render blueprint for the Finman API.
+#
+# Render hosts the service; the database lives on Neon, whose free tier does
+# not expire. Point DATABASE_URL at your Neon connection string.
+#
+# Deploy: push this repo to GitHub, then in Render choose
+# New > Blueprint and select the repository.
+
+services:
+  - type: web
+    name: finman-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: singapore
+    plan: free
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      # Paste the Neon connection string. It must start with
+      # postgresql+psycopg:// so SQLAlchemy uses the installed driver.
+      - key: DATABASE_URL
+        sync: false
+      # Leave blank and Render generates a strong random value once.
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      # Demo data is refused outside development.
+      - key: ALLOW_DEMO_SEED
+        value: "false"
+      - key: CURRENCY
+        value: INR
+      - key: TIMEZONE
+        value: Asia/Kolkata
+      # The two accounts. Set both to passwords only you two know; the
+      # service refuses to start while they are the example values.
+      - key: USER_ONE_USERNAME
+        value: aswin
+      - key: USER_ONE_DISPLAY_NAME
+        value: Aswin
+      - key: USER_ONE_PASSWORD
+        sync: false
+      - key: USER_TWO_USERNAME
+        value: salini
+      - key: USER_TWO_DISPLAY_NAME
+        value: Salini
+      - key: USER_TWO_PASSWORD
+        sync: false

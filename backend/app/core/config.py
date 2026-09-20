@@ -45,6 +45,53 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["*"]
 
 
+DEFAULT_SECRET = "change-me-in-production-please-use-a-long-random-value"
+DEFAULT_PASSWORDS = {"aswin1234", "salini1234"}
+# Markers that betray a copied example or development key, which would
+# otherwise slip past the length check.
+PLACEHOLDER_MARKERS = ("change-me", "dev-only", "example", "secret-key", "not-for-production")
+
+
+class ConfigurationError(RuntimeError):
+    """Raised when the deployment would be unsafe to run as configured."""
+
+
+def _check_production_safety(settings: Settings) -> None:
+    """Refuse to serve real data with placeholder credentials.
+
+    Development is left alone. Anything else is reachable from the internet,
+    where a known signing key means anyone can mint a valid session.
+    """
+    if settings.environment.lower() in {"development", "dev", "test", "testing"}:
+        return
+
+    problems: list[str] = []
+    lowered = settings.secret_key.lower()
+    if (
+        settings.secret_key == DEFAULT_SECRET
+        or len(settings.secret_key) < 32
+        or any(marker in lowered for marker in PLACEHOLDER_MARKERS)
+    ):
+        problems.append(
+            "SECRET_KEY is missing, too short, or still the example value. "
+            'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(48))"'
+        )
+    if settings.user_one_password in DEFAULT_PASSWORDS or settings.user_two_password in DEFAULT_PASSWORDS:
+        problems.append(
+            "USER_ONE_PASSWORD and USER_TWO_PASSWORD are still the example values. "
+            "Set both to passwords only you two know."
+        )
+    if settings.allow_demo_seed:
+        problems.append("ALLOW_DEMO_SEED must be false outside development.")
+
+    if problems:
+        raise ConfigurationError(
+            "Refusing to start with an unsafe configuration:\n  - " + "\n  - ".join(problems)
+        )
+
+
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    _check_production_safety(settings)
+    return settings
