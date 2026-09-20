@@ -12,7 +12,6 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedNumber } from '../../src/components/AnimatedNumber';
-import { Gradient } from '../../src/components/Gradient';
 import { LoanPaymentSheet, LoanSheet } from '../../src/components/LoanSheet';
 import { ProgressBar } from '../../src/components/ProgressBar';
 import {
@@ -20,6 +19,7 @@ import {
   Card,
   Divider,
   ErrorState,
+  IconButton,
   Pill,
   PressableScale,
   SectionHeading,
@@ -30,7 +30,7 @@ import { dueLabel, formatCurrency, formatDate, titleCase } from '../../src/lib/f
 import { useReducedMotion } from '../../src/lib/motion';
 import { useDeleteLoan, useDeleteLoanPayment, useLoan } from '../../src/lib/queries';
 import { useToast } from '../../src/lib/toast';
-import { gradients, motion, palette, radius, spacing, typography } from '../../src/theme';
+import { motion, palette, spacing, typography } from '../../src/theme';
 
 export default function LoanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -77,7 +77,6 @@ export default function LoanDetailScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         contentContainerStyle={[
@@ -87,11 +86,7 @@ export default function LoanDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.navBar}>
-          <PressableScale onPress={() => router.back()} accessibilityLabel="Go back">
-            <View style={styles.backButton}>
-              <Text style={[typography.body, { color: palette.textPrimary }]}>Back</Text>
-            </View>
-          </PressableScale>
+          <IconButton name="back" accessibilityLabel="Go back" onPress={() => router.back()} />
         </View>
 
         {isLoading && !loan ? (
@@ -110,37 +105,34 @@ export default function LoanDetailScreen() {
             <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base)}>
               <Card raised>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
-                  <Pill label={titleCase(loan.debt_type)} color={palette.info} />
-                  <Pill
-                    label={titleCase(loan.status)}
-                    color={loan.status === 'closed' ? palette.positive : loan.status === 'paused' ? palette.warning : palette.ember}
-                  />
-                  {loan.scope === 'personal' ? <Pill label="Personal" color={palette.neutral} /> : null}
+                  <Pill label={titleCase(loan.debt_type)} />
+                  <Pill label={titleCase(loan.status)} />
+                  {loan.scope === 'personal' ? <Pill label="Personal" /> : null}
                 </View>
 
-                <Text style={[typography.heading, { color: palette.textSecondary, marginTop: spacing.md }]}>
+                <Text style={[typography.heading, { color: palette.inkSecondary, marginTop: spacing.md }]}>
                   {loan.name}
                 </Text>
                 {loan.lender ? (
-                  <Text style={[typography.caption, { color: palette.textTertiary }]}>{loan.lender}</Text>
+                  <Text style={[typography.caption, { color: palette.inkTertiary }]}>{loan.lender}</Text>
                 ) : null}
 
-                <Text style={[typography.micro, { color: palette.textTertiary, marginTop: spacing.lg }]}>
+                <Text style={[typography.label, { color: palette.inkTertiary, marginTop: spacing.lg }]}>
                   OUTSTANDING BALANCE
                 </Text>
                 <AnimatedNumber
                   value={loan.outstanding_balance}
-                  style={[typography.balance, { color: palette.textPrimary }]}
+                  style={[typography.display, { color: palette.ink }]}
                 />
 
                 {loan.principal_amount > 0 ? (
                   <View style={{ marginTop: spacing.md }}>
-                    <ProgressBar percent={loan.progress_pct} gradient={gradients.ember} height={7} />
+                    <ProgressBar percent={loan.progress_pct} fill={palette.ink} height={7} />
                     <View style={styles.progressMeta}>
-                      <Text style={[typography.caption, { color: palette.textTertiary }]}>
+                      <Text style={[typography.caption, { color: palette.inkTertiary }]}>
                         {Math.round(loan.progress_pct)}% repaid
                       </Text>
-                      <Text style={[typography.caption, { color: palette.textTertiary }]}>
+                      <Text style={[typography.caption, { color: palette.inkTertiary }]}>
                         of {formatCurrency(loan.principal_amount)}
                       </Text>
                     </View>
@@ -182,11 +174,11 @@ export default function LoanDetailScreen() {
               <SectionHeading title="Projection" caption="Estimated from the current balance, EMI and rate" />
               <Card>
                 {loan.remaining_months_estimate === null ? (
-                  <Text style={[typography.body, { color: palette.warning }]}>
+                  <Text style={[typography.body, { color: palette.inkSecondary }]}>
                     At this EMI the balance will not reduce. Increase the EMI or record extra payments to clear it.
                   </Text>
                 ) : loan.remaining_months_estimate === 0 ? (
-                  <Text style={[typography.body, { color: palette.positive }]}>
+                  <Text style={[typography.body, { color: palette.ink }]}>
                     This debt is fully repaid.
                   </Text>
                 ) : (
@@ -216,7 +208,7 @@ export default function LoanDetailScreen() {
               <Card padded={false}>
                 {loan.payments.length === 0 ? (
                   <View style={{ padding: spacing.lg }}>
-                    <Text style={[typography.caption, { color: palette.textTertiary }]}>
+                    <Text style={[typography.caption, { color: palette.inkTertiary }]}>
                       No payments recorded yet. Recording one reduces the outstanding balance.
                     </Text>
                   </View>
@@ -232,18 +224,18 @@ export default function LoanDetailScreen() {
                         style={[styles.paymentRow, index < loan.payments.length - 1 && styles.rowBorder]}
                       >
                         <View style={{ flex: 1 }}>
-                          <Text style={[typography.body, { color: palette.textPrimary }]}>
+                          <Text style={[typography.body, { color: palette.ink }]}>
                             {formatDate(payment.paid_on)}
                           </Text>
-                          <Text style={[typography.micro, { color: palette.textTertiary, marginTop: 2 }]}>
+                          <Text style={[typography.label, { color: palette.inkTertiary, marginTop: 2 }]}>
                             {titleCase(payment.payment_type)}
                             {payment.note ? ` · ${payment.note}` : ''}
                           </Text>
                         </View>
                         <Text
                           style={[
-                            typography.bodyStrong,
-                            { color: payment.payment_type === 'charge' ? palette.negative : palette.textPrimary },
+                            typography.bodyMedium,
+                            { color: payment.payment_type === 'charge' ? palette.ink : palette.ink },
                           ]}
                         >
                           {payment.payment_type === 'charge' ? '+' : '-'}
@@ -255,7 +247,7 @@ export default function LoanDetailScreen() {
                 )}
               </Card>
               {loan.payments.length > 0 ? (
-                <Text style={[typography.micro, { color: palette.textTertiary, marginTop: spacing.xs }]}>
+                <Text style={[typography.label, { color: palette.inkTertiary, marginTop: spacing.xs }]}>
                   Press and hold a payment to remove it and restore the balance.
                 </Text>
               ) : null}
@@ -263,8 +255,8 @@ export default function LoanDetailScreen() {
 
             {loan.notes ? (
               <Card>
-                <Text style={[typography.micro, { color: palette.textTertiary }]}>NOTES</Text>
-                <Text style={[typography.body, { color: palette.textPrimary, marginTop: 4 }]}>{loan.notes}</Text>
+                <Text style={[typography.label, { color: palette.inkTertiary }]}>NOTES</Text>
+                <Text style={[typography.body, { color: palette.ink, marginTop: 4 }]}>{loan.notes}</Text>
               </Card>
             ) : null}
 
@@ -306,13 +298,13 @@ export default function LoanDetailScreen() {
 function Row({ label, value, caption }: { label: string; value: string; caption?: string }) {
   return (
     <View style={styles.row}>
-      <Text style={[typography.body, { color: palette.textTertiary }]}>{label}</Text>
+      <Text style={[typography.body, { color: palette.inkTertiary }]}>{label}</Text>
       <View style={{ alignItems: 'flex-end', flexShrink: 1 }}>
-        <Text style={[typography.bodyStrong, { color: palette.textPrimary }]} numberOfLines={1}>
+        <Text style={[typography.bodyMedium, { color: palette.ink }]} numberOfLines={1}>
           {value}
         </Text>
         {caption ? (
-          <Text style={[typography.micro, { color: palette.textTertiary, marginTop: 2 }]}>{caption}</Text>
+          <Text style={[typography.label, { color: palette.inkTertiary, marginTop: 2 }]}>{caption}</Text>
         ) : null}
       </View>
     </View>
@@ -320,20 +312,12 @@ function Row({ label, value, caption }: { label: string; value: string; caption?
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
-  content: { paddingHorizontal: spacing.lg, gap: spacing.lg },
+  root: { flex: 1, backgroundColor: palette.page },
+  content: { paddingHorizontal: spacing.lg, gap: spacing.xl },
   navBar: { flexDirection: 'row' },
-  backButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: palette.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
-  },
   progressMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.md },
   divider: { marginHorizontal: -spacing.lg },
   paymentRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
 });

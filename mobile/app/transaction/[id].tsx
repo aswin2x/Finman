@@ -11,14 +11,13 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Gradient } from '../../src/components/Gradient';
 import {
   Button,
   Card,
   Divider,
   ErrorState,
+  IconButton,
   Pill,
-  PressableScale,
   SectionHeading,
   Skeleton,
 } from '../../src/components/primitives';
@@ -28,7 +27,7 @@ import { formatCurrency, formatDate, titleCase } from '../../src/lib/format';
 import { useReducedMotion } from '../../src/lib/motion';
 import { useDeleteTransaction, useRestoreTransaction, useTransaction } from '../../src/lib/queries';
 import { useToast } from '../../src/lib/toast';
-import { gradients, motion, palette, radius, spacing, typography } from '../../src/theme';
+import { motion, palette, radius, spacing, typography } from '../../src/theme';
 
 export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,18 +66,13 @@ export default function TransactionDetailScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.xxl }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.navBar}>
-          <PressableScale onPress={() => router.back()} accessibilityLabel="Go back">
-            <View style={styles.backButton}>
-              <Text style={[typography.body, { color: palette.textPrimary }]}>Back</Text>
-            </View>
-          </PressableScale>
+          <IconButton name="back" accessibilityLabel="Go back" onPress={() => router.back()} />
         </View>
 
         {isLoading && !data ? (
@@ -96,19 +90,16 @@ export default function TransactionDetailScreen() {
             <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base)}>
               <Card raised>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
-                  <Pill
-                    label={data.type === 'income' ? 'Income' : 'Expense'}
-                    color={data.type === 'income' ? palette.positive : palette.ember}
-                  />
-                  {data.scope === 'personal' ? <Pill label="Personal" color={palette.neutral} /> : null}
-                  {data.is_imported ? <Pill label="Imported" color={palette.info} /> : null}
-                  {linked ? <Pill label="From a payment" color={palette.warning} /> : null}
+                  <Pill label={data.type === 'income' ? 'Income' : 'Expense'} />
+                  {data.scope === 'personal' ? <Pill label="Personal" /> : null}
+                  {data.is_imported ? <Pill label="Imported" /> : null}
+                  {linked ? <Pill label="From a payment" /> : null}
                 </View>
 
-                <Text style={[typography.display, { color: palette.textPrimary, marginTop: spacing.md }]}>
+                <Text style={[typography.display, { color: palette.ink, marginTop: spacing.md }]}>
                   {formatCurrency(data.amount, { decimals: true })}
                 </Text>
-                <Text style={[typography.heading, { color: palette.textSecondary, marginTop: spacing.xxs }]}>
+                <Text style={[typography.heading, { color: palette.inkSecondary, marginTop: spacing.xxs }]}>
                   {data.title}
                 </Text>
               </Card>
@@ -134,8 +125,8 @@ export default function TransactionDetailScreen() {
                   <>
                     <Divider style={styles.divider} />
                     <View style={{ paddingVertical: spacing.sm }}>
-                      <Text style={[typography.micro, { color: palette.textTertiary }]}>NOTE</Text>
-                      <Text style={[typography.body, { color: palette.textPrimary, marginTop: 4 }]}>
+                      <Text style={[typography.label, { color: palette.inkTertiary }]}>NOTE</Text>
+                      <Text style={[typography.body, { color: palette.ink, marginTop: 4 }]}>
                         {data.notes}
                       </Text>
                     </View>
@@ -146,7 +137,7 @@ export default function TransactionDetailScreen() {
 
             {linked ? (
               <View style={styles.notice}>
-                <Text style={[typography.caption, { color: palette.warning }]}>
+                <Text style={[typography.caption, { color: palette.inkSecondary }]}>
                   This entry was created by a recorded payment. Edit or remove that payment so the outstanding
                   balance stays correct.
                 </Text>
@@ -195,10 +186,10 @@ export default function TransactionDetailScreen() {
 function DetailRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <View style={styles.detailRow}>
-      <Text style={[typography.body, { color: palette.textTertiary }]}>{label}</Text>
+      <Text style={[typography.body, { color: palette.inkTertiary }]}>{label}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexShrink: 1 }}>
         {color ? <View style={[styles.dot, { backgroundColor: color }]} /> : null}
-        <Text style={[typography.bodyStrong, { color: palette.textPrimary }]} numberOfLines={1}>
+        <Text style={[typography.bodyMedium, { color: palette.ink }]} numberOfLines={1}>
           {value}
         </Text>
       </View>
@@ -207,25 +198,17 @@ function DetailRow({ label, value, color }: { label: string; value: string; colo
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
-  content: { paddingHorizontal: spacing.lg, gap: spacing.lg },
+  root: { flex: 1, backgroundColor: palette.page },
+  content: { paddingHorizontal: spacing.lg, gap: spacing.xl },
   navBar: { flexDirection: 'row' },
-  backButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: palette.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
-  },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm },
   divider: { marginHorizontal: -spacing.lg },
   dot: { width: 8, height: 8, borderRadius: 4 },
   notice: {
-    backgroundColor: palette.warningSoft,
-    borderRadius: radius.sm,
+    backgroundColor: palette.surfaceSubtle,
+    borderRadius: radius.md,
     padding: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(245,181,68,0.3)',
+    borderColor: palette.border,
   },
 });

@@ -6,13 +6,13 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedNumber } from '../../src/components/AnimatedNumber';
-import { Gradient } from '../../src/components/Gradient';
 import { ProgressBar } from '../../src/components/ProgressBar';
 import {
   Button,
   Card,
   Divider,
   ErrorState,
+  IconButton,
   Pill,
   PressableScale,
   SectionHeading,
@@ -29,7 +29,7 @@ import {
   useUpdateSettlement,
 } from '../../src/lib/queries';
 import { useToast } from '../../src/lib/toast';
-import { gradients, motion, palette, radius, spacing, typography } from '../../src/theme';
+import { motion, palette, spacing, typography } from '../../src/theme';
 
 export default function SettlementDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -49,7 +49,7 @@ export default function SettlementDetailScreen() {
   const [confirmPayment, setConfirmPayment] = useState<string | null>(null);
 
   const outflow = data?.direction === 'we_owe';
-  const tint = outflow ? palette.negative : palette.positive;
+  const tint = outflow ? palette.ink : palette.ink;
   const paidPct = data && data.total_amount > 0 ? (data.paid_amount / data.total_amount) * 100 : 0;
 
   const onVerify = async () => {
@@ -87,7 +87,6 @@ export default function SettlementDetailScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         contentContainerStyle={[
@@ -97,11 +96,7 @@ export default function SettlementDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.navBar}>
-          <PressableScale onPress={() => router.back()} accessibilityLabel="Go back">
-            <View style={styles.backButton}>
-              <Text style={[typography.body, { color: palette.textPrimary }]}>Back</Text>
-            </View>
-          </PressableScale>
+          <IconButton name="back" accessibilityLabel="Go back" onPress={() => router.back()} />
         </View>
 
         {isLoading && !data ? (
@@ -119,39 +114,30 @@ export default function SettlementDetailScreen() {
             <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base)}>
               <Card raised>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
-                  <Pill label={outflow ? 'We owe' : 'Owed to us'} color={tint} />
-                  <Pill
-                    label={data.status === 'settled' ? 'Settled' : data.status === 'partial' ? 'Partial' : 'Pending'}
-                    color={
-                      data.status === 'settled'
-                        ? palette.positive
-                        : data.status === 'partial'
-                          ? palette.warning
-                          : palette.neutral
-                    }
-                  />
-                  {!data.is_verified ? <Pill label="Unconfirmed" color={palette.neutral} /> : null}
+                  <Pill label={outflow ? 'We owe' : 'Owed to us'} />
+                  <Pill label={data.status === 'settled' ? 'Settled' : data.status === 'partial' ? 'Partial' : 'Pending'} />
+                  {!data.is_verified ? <Pill label="Unconfirmed" /> : null}
                 </View>
 
-                <Text style={[typography.heading, { color: palette.textSecondary, marginTop: spacing.md }]}>
+                <Text style={[typography.heading, { color: palette.inkSecondary, marginTop: spacing.md }]}>
                   {data.person_name}
                 </Text>
 
-                <Text style={[typography.micro, { color: palette.textTertiary, marginTop: spacing.lg }]}>
+                <Text style={[typography.label, { color: palette.inkTertiary, marginTop: spacing.lg }]}>
                   {data.status === 'settled' ? 'FULLY SETTLED' : 'REMAINING'}
                 </Text>
                 <AnimatedNumber
                   value={data.remaining_amount}
-                  style={[typography.balance, { color: data.status === 'settled' ? palette.positive : tint }]}
+                  style={[typography.display, { color: data.status === 'settled' ? palette.ink : tint }]}
                 />
 
                 <View style={{ marginTop: spacing.md }}>
-                  <ProgressBar percent={paidPct} color={tint} height={6} />
+                  <ProgressBar percent={paidPct} fill={tint} height={6} />
                   <View style={styles.progressMeta}>
-                    <Text style={[typography.caption, { color: palette.textTertiary }]}>
+                    <Text style={[typography.caption, { color: palette.inkTertiary }]}>
                       {formatCurrency(data.paid_amount)} paid
                     </Text>
-                    <Text style={[typography.caption, { color: palette.textTertiary }]}>
+                    <Text style={[typography.caption, { color: palette.inkTertiary }]}>
                       of {formatCurrency(data.total_amount)}
                     </Text>
                   </View>
@@ -174,8 +160,8 @@ export default function SettlementDetailScreen() {
                   <>
                     <Divider style={styles.divider} />
                     <View style={{ paddingVertical: spacing.sm }}>
-                      <Text style={[typography.micro, { color: palette.textTertiary }]}>NOTES</Text>
-                      <Text style={[typography.body, { color: palette.textPrimary, marginTop: 4 }]}>
+                      <Text style={[typography.label, { color: palette.inkTertiary }]}>NOTES</Text>
+                      <Text style={[typography.body, { color: palette.ink, marginTop: 4 }]}>
                         {data.notes}
                       </Text>
                     </View>
@@ -189,7 +175,7 @@ export default function SettlementDetailScreen() {
               <Card padded={false}>
                 {data.payments.length === 0 ? (
                   <View style={{ padding: spacing.lg }}>
-                    <Text style={[typography.caption, { color: palette.textTertiary }]}>
+                    <Text style={[typography.caption, { color: palette.inkTertiary }]}>
                       Nothing paid yet. Partial payments are allowed.
                     </Text>
                   </View>
@@ -203,16 +189,16 @@ export default function SettlementDetailScreen() {
                     >
                       <View style={[styles.paymentRow, index < data.payments.length - 1 && styles.rowBorder]}>
                         <View style={{ flex: 1 }}>
-                          <Text style={[typography.body, { color: palette.textPrimary }]}>
+                          <Text style={[typography.body, { color: palette.ink }]}>
                             {formatDate(payment.paid_on)}
                           </Text>
                           {payment.note ? (
-                            <Text style={[typography.micro, { color: palette.textTertiary, marginTop: 2 }]}>
+                            <Text style={[typography.label, { color: palette.inkTertiary, marginTop: 2 }]}>
                               {payment.note}
                             </Text>
                           ) : null}
                         </View>
-                        <Text style={[typography.bodyStrong, { color: palette.textPrimary }]}>
+                        <Text style={[typography.bodyMedium, { color: palette.ink }]}>
                           {formatCurrency(payment.amount)}
                         </Text>
                       </View>
@@ -221,7 +207,7 @@ export default function SettlementDetailScreen() {
                 )}
               </Card>
               {data.payments.length > 0 ? (
-                <Text style={[typography.micro, { color: palette.textTertiary, marginTop: spacing.xs }]}>
+                <Text style={[typography.label, { color: palette.inkTertiary, marginTop: spacing.xs }]}>
                   Press and hold a payment to remove it.
                 </Text>
               ) : null}
@@ -278,8 +264,8 @@ export default function SettlementDetailScreen() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.row}>
-      <Text style={[typography.body, { color: palette.textTertiary }]}>{label}</Text>
-      <Text style={[typography.bodyStrong, { color: palette.textPrimary }]} numberOfLines={1}>
+      <Text style={[typography.body, { color: palette.inkTertiary }]}>{label}</Text>
+      <Text style={[typography.bodyMedium, { color: palette.ink }]} numberOfLines={1}>
         {value}
       </Text>
     </View>
@@ -287,20 +273,12 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
-  content: { paddingHorizontal: spacing.lg, gap: spacing.lg },
+  root: { flex: 1, backgroundColor: palette.page },
+  content: { paddingHorizontal: spacing.lg, gap: spacing.xl },
   navBar: { flexDirection: 'row' },
-  backButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: palette.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
-  },
   progressMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xs },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.sm, gap: spacing.md },
   divider: { marginHorizontal: -spacing.lg },
   paymentRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
 });

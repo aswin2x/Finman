@@ -1,9 +1,9 @@
 /**
  * Debts.
  *
- * Loans, credit cards, BNPL and personal dues in one place, filtered by type.
- * Each card shows the recorded outstanding balance and, where an interest rate
- * is known, an estimated completion date that is clearly marked as an estimate.
+ * Loans, cards, BNPL and personal dues in one list, filtered by type. Each
+ * card shows the recorded outstanding balance, never a figure derived from
+ * EMI times tenure.
  */
 import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedNumber } from '../../src/components/AnimatedNumber';
 import { Segmented } from '../../src/components/fields';
-import { Gradient } from '../../src/components/Gradient';
+import { Icon } from '../../src/components/Icon';
 import { LoanSheet } from '../../src/components/LoanSheet';
 import { ProgressBar } from '../../src/components/ProgressBar';
 import {
@@ -21,7 +21,7 @@ import {
   Card,
   EmptyState,
   ErrorState,
-  GradientCard,
+  FeatureCard,
   Pill,
   PressableScale,
   SectionHeading,
@@ -31,7 +31,7 @@ import { dueLabel, formatCurrency, titleCase } from '../../src/lib/format';
 import { useReducedMotion } from '../../src/lib/motion';
 import { useDebtSummary, useLoans, useSettlementSummary } from '../../src/lib/queries';
 import type { Loan } from '../../src/lib/types';
-import { gradients, motion, palette, spacing, typography } from '../../src/theme';
+import { fonts, motion, palette, spacing, typography } from '../../src/theme';
 
 const TYPE_TABS = [
   { value: 'all', label: 'All' },
@@ -52,9 +52,14 @@ export default function DebtsScreen() {
 
   const { data: summary, isLoading: summaryLoading } = useDebtSummary();
   const { data: settlements } = useSettlementSummary();
-  const { data: loans = [], isLoading, isError, error, refetch, isRefetching } = useLoans(
-    tab === 'all' ? {} : { debt_type: tab },
-  );
+  const {
+    data: loans = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+  } = useLoans(tab === 'all' ? {} : { debt_type: tab });
 
   const visible = useMemo(
     () => loans.filter((loan) => (showClosed ? true : loan.status !== 'closed')),
@@ -64,111 +69,105 @@ export default function DebtsScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
-
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={palette.ember} />}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={palette.inkTertiary} />
+        }
       >
         <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base)}>
-          <Text style={[typography.title, { color: palette.textPrimary }]}>Debts</Text>
-          <Text style={[typography.caption, { color: palette.textTertiary, marginTop: 2 }]}>
-            Loans, cards and everything you are repaying
+          <Text style={[typography.title, { color: palette.ink }]}>Debts</Text>
+          <Text style={[typography.caption, { color: palette.inkTertiary, marginTop: 2 }]}>
+            Everything you are repaying
           </Text>
         </Animated.View>
 
-        {/* Summary */}
         {summaryLoading && !summary ? (
-          <Skeleton height={160} />
+          <Skeleton height={170} />
         ) : summary ? (
-          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(60)}>
-            <GradientCard colors={['#2A2030', '#1A1620']}>
-              <Text style={[typography.micro, { color: palette.textTertiary }]}>TOTAL OUTSTANDING</Text>
+          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(50)}>
+            <FeatureCard>
+              <Text style={styles.invLabel}>TOTAL OUTSTANDING</Text>
               <AnimatedNumber
                 value={summary.total_outstanding}
-                style={[typography.balance, { color: palette.textPrimary, marginTop: spacing.xs }]}
+                style={[typography.display, { color: palette.inkInverse, marginTop: spacing.xs }]}
               />
-              <View style={styles.summarySplit}>
+              <View style={styles.featureSplit}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[typography.micro, { color: palette.textTertiary }]}>MONTHLY EMI</Text>
-                  <Text style={[typography.subheading, { color: palette.textPrimary, marginTop: 2 }]}>
+                  <Text style={styles.invLabel}>MONTHLY EMI</Text>
+                  <Text style={[typography.figureSmall, { color: palette.inkInverse, marginTop: 4 }]}>
                     {formatCurrency(summary.monthly_emi_commitment)}
                   </Text>
                 </View>
-                <View style={styles.summaryRule} />
+                <View style={styles.featureRule} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[typography.micro, { color: palette.textTertiary }]}>ACTIVE</Text>
-                  <Text style={[typography.subheading, { color: palette.textPrimary, marginTop: 2 }]}>
+                  <Text style={styles.invLabel}>ACTIVE</Text>
+                  <Text style={[typography.figureSmall, { color: palette.inkInverse, marginTop: 4 }]}>
                     {summary.active_count}
                     {summary.closed_count > 0 ? (
-                      <Text style={[typography.caption, { color: palette.textTertiary }]}>
-                        {'  '}
+                      <Text style={[typography.caption, { color: palette.inkInverseTertiary }]}>
+                        {'   '}
                         {summary.closed_count} closed
                       </Text>
                     ) : null}
                   </Text>
                 </View>
               </View>
-            </GradientCard>
+            </FeatureCard>
           </Animated.View>
         ) : null}
 
-        {/* Settlements entry point */}
         {settlements ? (
-          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(90)}>
-            <PressableScale
-              onPress={() => router.push('/settlements')}
-              accessibilityLabel="Open personal settlements"
-            >
+          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(80)}>
+            <PressableScale onPress={() => router.push('/settlements')} accessibilityLabel="Open settlements">
               <Card>
                 <View style={styles.settleRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[typography.micro, { color: palette.textTertiary }]}>PERSONAL SETTLEMENTS</Text>
-                    <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.xs }}>
+                    <Text style={[typography.label, styles.label]}>PERSONAL SETTLEMENTS</Text>
+                    <View style={{ flexDirection: 'row', gap: spacing.xl, marginTop: spacing.sm }}>
                       <View>
-                        <Text style={[typography.caption, { color: palette.textTertiary }]}>We owe</Text>
-                        <Text style={[typography.subheading, { color: palette.negative }]}>
+                        <Text style={[typography.caption, { color: palette.inkTertiary }]}>We owe</Text>
+                        <Text style={[typography.figureSmall, { color: palette.ink, marginTop: 2 }]}>
                           {formatCurrency(settlements.we_owe_total)}
                         </Text>
                       </View>
                       <View>
-                        <Text style={[typography.caption, { color: palette.textTertiary }]}>Owed to us</Text>
-                        <Text style={[typography.subheading, { color: palette.positive }]}>
+                        <Text style={[typography.caption, { color: palette.inkTertiary }]}>Owed to us</Text>
+                        <Text style={[typography.figureSmall, { color: palette.ink, marginTop: 2 }]}>
                           {formatCurrency(settlements.owed_to_us_total)}
                         </Text>
                       </View>
                     </View>
                   </View>
-                  <Text style={[typography.heading, { color: palette.textTertiary }]}>{'›'}</Text>
+                  <Icon name="chevron" size={18} color={palette.inkQuaternary} />
                 </View>
               </Card>
             </PressableScale>
           </Animated.View>
         ) : null}
 
-        {/* Type tabs */}
-        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(120)}>
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(110)}>
           <Segmented options={TYPE_TABS} value={tab} onChange={setTab} />
         </Animated.View>
 
-        {/* List */}
         <View>
           <SectionHeading
-            title={tab === 'all' ? 'All debts' : `${TYPE_TABS.find((t) => t.value === tab)?.label}`}
+            title={tab === 'all' ? 'All debts' : (TYPE_TABS.find((t) => t.value === tab)?.label ?? '')}
             action={closedCount > 0 ? (showClosed ? 'Hide closed' : `Show closed (${closedCount})`) : undefined}
             onAction={() => setShowClosed((value) => !value)}
           />
 
           {isLoading && loans.length === 0 ? (
             <View style={{ gap: spacing.sm }}>
-              <Skeleton height={130} />
-              <Skeleton height={130} />
+              <Skeleton height={140} />
+              <Skeleton height={140} />
             </View>
           ) : isError && loans.length === 0 ? (
             <ErrorState message={error instanceof Error ? error.message : 'Unknown error'} onRetry={refetch} />
           ) : visible.length === 0 ? (
             <EmptyState
+              icon="card"
               title="Nothing here"
               message={
                 tab === 'all'
@@ -192,11 +191,11 @@ export default function DebtsScreen() {
           )}
         </View>
 
-        <View style={{ height: insets.bottom + 96 }} />
+        <View style={{ height: insets.bottom + 92 }} />
       </ScrollView>
 
-      <View style={[styles.fabWrap, { bottom: insets.bottom + spacing.md }]} pointerEvents="box-none">
-        <Button label="+  Add Debt" onPress={() => setSheetOpen(true)} full />
+      <View style={[styles.fabWrap, { bottom: insets.bottom + spacing.sm }]} pointerEvents="box-none">
+        <Button label="Add Debt" icon="plus" onPress={() => setSheetOpen(true)} full />
       </View>
 
       <LoanSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} />
@@ -206,54 +205,53 @@ export default function DebtsScreen() {
 
 function LoanCard({ loan, index, onPress }: { loan: Loan; index: number; onPress: () => void }) {
   const reduced = useReducedMotion();
-  const repaid = loan.principal_amount > 0
-    ? Math.min(100, Math.max(0, ((loan.principal_amount - loan.outstanding_balance) / loan.principal_amount) * 100))
-    : 0;
+  const repaid =
+    loan.principal_amount > 0
+      ? Math.min(100, Math.max(0, ((loan.principal_amount - loan.outstanding_balance) / loan.principal_amount) * 100))
+      : 0;
   const closed = loan.status === 'closed';
   const days = loan.next_due_date
     ? Math.round((new Date(loan.next_due_date).getTime() - Date.now()) / 86400000)
     : null;
+  const overdue = days !== null && days < 0;
 
   return (
     <Animated.View
-      entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(Math.min(index * 45, 250))}
+      entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(Math.min(index * 38, 220))}
     >
       <PressableScale
         onPress={onPress}
         accessibilityLabel={`${loan.name}, ${formatCurrency(loan.outstanding_balance)} outstanding`}
         accessibilityHint="Opens the debt details"
       >
-        <Card style={closed ? { opacity: 0.65 } : undefined}>
+        <Card style={closed ? { opacity: 0.6 } : undefined}>
           <View style={styles.loanHead}>
             <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
-                <Text style={[typography.subheading, { color: palette.textPrimary }]} numberOfLines={1}>
+              <View style={styles.loanTitle}>
+                <Text style={[typography.subheading, { color: palette.ink }]} numberOfLines={1}>
                   {loan.name}
                 </Text>
-                <Pill
-                  label={titleCase(loan.debt_type)}
-                  color={loan.debt_type === 'credit_card' ? palette.warning : palette.info}
-                />
-                {closed ? <Pill label="Closed" color={palette.positive} /> : null}
+                <Pill label={titleCase(loan.debt_type)} />
+                {closed ? <Pill label="Closed" strong /> : null}
               </View>
               {loan.lender ? (
-                <Text style={[typography.caption, { color: palette.textTertiary, marginTop: 2 }]}>
+                <Text style={[typography.caption, { color: palette.inkTertiary, marginTop: 3 }]}>
                   {loan.lender}
                 </Text>
               ) : null}
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[typography.subheading, { color: palette.textPrimary }]}>
+              <Text style={[typography.figure, { color: palette.ink }]}>
                 {formatCurrency(loan.outstanding_balance)}
               </Text>
-              <Text style={[typography.micro, { color: palette.textTertiary }]}>outstanding</Text>
+              <Text style={[typography.caption, { color: palette.inkQuaternary }]}>outstanding</Text>
             </View>
           </View>
 
           {loan.principal_amount > 0 ? (
             <View style={{ marginTop: spacing.md }}>
-              <ProgressBar percent={repaid} gradient={gradients.ember} height={5} />
-              <Text style={[typography.micro, { color: palette.textTertiary, marginTop: 6 }]}>
+              <ProgressBar percent={repaid} fill={palette.ink} height={4} />
+              <Text style={[typography.caption, { color: palette.inkQuaternary, marginTop: 6 }]}>
                 {Math.round(repaid)}% of {formatCurrency(loan.principal_amount)} repaid
               </Text>
             </View>
@@ -261,7 +259,7 @@ function LoanCard({ loan, index, onPress }: { loan: Loan; index: number; onPress
 
           {!closed && loan.emi_amount > 0 ? (
             <View style={styles.loanFoot}>
-              <Text style={[typography.caption, { color: palette.textSecondary }]}>
+              <Text style={[typography.caption, { color: palette.inkSecondary }]}>
                 {formatCurrency(loan.emi_amount)} / month
                 {loan.months_paid > 0 ? ` · ${loan.months_paid} paid` : ''}
               </Text>
@@ -269,10 +267,13 @@ function LoanCard({ loan, index, onPress }: { loan: Loan; index: number; onPress
                 <Text
                   style={[
                     typography.caption,
-                    { color: days !== null && days < 0 ? palette.negative : palette.textTertiary },
+                    {
+                      color: overdue ? palette.ink : palette.inkQuaternary,
+                      fontFamily: overdue ? fonts.semibold : fonts.regular,
+                    },
                   ]}
                 >
-                  {dueLabel(days, days !== null && days < 0)}
+                  {dueLabel(days, overdue)}
                 </Text>
               ) : null}
             </View>
@@ -284,12 +285,20 @@ function LoanCard({ loan, index, onPress }: { loan: Loan; index: number; onPress
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
-  content: { paddingHorizontal: spacing.lg, gap: spacing.lg },
-  summarySplit: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg },
-  summaryRule: { width: StyleSheet.hairlineWidth, height: 34, backgroundColor: palette.hairline, marginHorizontal: spacing.md },
+  root: { flex: 1, backgroundColor: palette.page },
+  content: { paddingHorizontal: spacing.lg, gap: spacing.xl },
+  label: { color: palette.inkTertiary, textTransform: 'uppercase' },
+  invLabel: { ...typography.label, color: palette.inkInverseTertiary, textTransform: 'uppercase' },
+  featureSplit: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl },
+  featureRule: {
+    width: StyleSheet.hairlineWidth,
+    height: 40,
+    backgroundColor: palette.borderInverse,
+    marginHorizontal: spacing.md,
+  },
   settleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   loanHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  loanTitle: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
   loanFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   fabWrap: { position: 'absolute', left: spacing.lg, right: spacing.lg },
 });

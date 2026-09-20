@@ -168,7 +168,7 @@ export function ImportExportSheet({ visible, onClose }: Props) {
       }
     >
       <View style={{ gap: spacing.sm }}>
-        <Text style={[typography.micro, { color: palette.textTertiary }]}>IMPORT</Text>
+        <Text style={[typography.label, { color: palette.inkTertiary }]}>IMPORT</Text>
         <Button
           label={picked ? `Selected: ${picked.name}` : 'Choose a CSV or Excel file'}
           variant="secondary"
@@ -176,7 +176,7 @@ export function ImportExportSheet({ visible, onClose }: Props) {
           loading={preview.isPending}
           full
         />
-        <Text style={[typography.caption, { color: palette.textTertiary }]}>
+        <Text style={[typography.caption, { color: palette.inkTertiary }]}>
           Columns: date, type, title, amount, category, payment_method, scope, notes. Unknown categories are
           created automatically.
         </Text>
@@ -186,21 +186,21 @@ export function ImportExportSheet({ visible, onClose }: Props) {
       {result ? (
         <View style={styles.previewBox}>
           <View style={styles.previewRow}>
-            <Text style={[typography.body, { color: palette.textPrimary }]}>Rows read</Text>
-            <Text style={[typography.bodyStrong, { color: palette.textPrimary }]}>{result.total_rows}</Text>
+            <Text style={[typography.body, { color: palette.ink }]}>Rows read</Text>
+            <Text style={[typography.bodyMedium, { color: palette.ink }]}>{result.total_rows}</Text>
           </View>
           <View style={styles.previewRow}>
-            <Text style={[typography.body, { color: palette.positive }]}>Ready to import</Text>
-            <Text style={[typography.bodyStrong, { color: palette.positive }]}>{result.valid_count}</Text>
+            <Text style={[typography.body, { color: palette.ink }]}>Ready to import</Text>
+            <Text style={[typography.bodyMedium, { color: palette.ink }]}>{result.valid_count}</Text>
           </View>
           <View style={styles.previewRow}>
-            <Text style={[typography.body, { color: result.error_count ? palette.warning : palette.textTertiary }]}>
+            <Text style={[typography.body, { color: result.error_count ? palette.inkSecondary : palette.inkTertiary }]}>
               Will be skipped
             </Text>
             <Text
               style={[
-                typography.bodyStrong,
-                { color: result.error_count ? palette.warning : palette.textTertiary },
+                typography.bodyMedium,
+                { color: result.error_count ? palette.inkSecondary : palette.inkTertiary },
               ]}
             >
               {result.error_count}
@@ -210,14 +210,14 @@ export function ImportExportSheet({ visible, onClose }: Props) {
           {result.sample.length > 0 ? (
             <>
               <Divider style={{ marginVertical: spacing.sm }} />
-              <Text style={[typography.micro, { color: palette.textTertiary }]}>FIRST FEW ROWS</Text>
+              <Text style={[typography.label, { color: palette.inkTertiary }]}>FIRST FEW ROWS</Text>
               <ScrollView style={{ maxHeight: 140 }} nestedScrollEnabled>
                 {result.sample.slice(0, 6).map((row) => (
                   <View key={row.row} style={styles.sampleRow}>
-                    <Text style={[typography.caption, { color: palette.textSecondary, flex: 1 }]} numberOfLines={1}>
+                    <Text style={[typography.caption, { color: palette.inkSecondary, flex: 1 }]} numberOfLines={1}>
                       {row.occurred_on} · {row.title}
                     </Text>
-                    <Text style={[typography.caption, { color: palette.textPrimary }]}>
+                    <Text style={[typography.caption, { color: palette.ink }]}>
                       {formatCurrency(row.amount)}
                     </Text>
                   </View>
@@ -229,10 +229,10 @@ export function ImportExportSheet({ visible, onClose }: Props) {
           {result.errors.length > 0 ? (
             <>
               <Divider style={{ marginVertical: spacing.sm }} />
-              <Text style={[typography.micro, { color: palette.warning }]}>SKIPPED ROWS</Text>
+              <Text style={[typography.label, { color: palette.inkSecondary }]}>SKIPPED ROWS</Text>
               <ScrollView style={{ maxHeight: 120 }} nestedScrollEnabled>
                 {result.errors.slice(0, 6).map((row) => (
-                  <Text key={row.row} style={[typography.caption, { color: palette.textTertiary, marginTop: 4 }]}>
+                  <Text key={row.row} style={[typography.caption, { color: palette.inkTertiary, marginTop: 4 }]}>
                     Row {row.row}: {row.error}
                   </Text>
                 ))}
@@ -245,7 +245,7 @@ export function ImportExportSheet({ visible, onClose }: Props) {
       <Divider />
 
       <View style={{ gap: spacing.sm }}>
-        <Text style={[typography.micro, { color: palette.textTertiary }]}>EXPORT</Text>
+        <Text style={[typography.label, { color: palette.inkTertiary }]}>EXPORT</Text>
         <Button label="Export as CSV" variant="secondary" onPress={() => download('csv')} loading={exporting} full />
         <Button label="Export as Excel" variant="secondary" onPress={() => download('xlsx')} loading={exporting} full />
       </View>
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.border,
     gap: spacing.xs,
   },
   previewRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

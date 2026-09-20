@@ -1,4 +1,9 @@
-/** Shared building blocks: surfaces, buttons, chips, headings and states. */
+/**
+ * Shared building blocks.
+ *
+ * Surfaces are white and separated by hairlines rather than fills or shadows.
+ * Black is the only accent, reserved for the primary action on a screen.
+ */
 import React from 'react';
 import {
   ActivityIndicator,
@@ -20,31 +25,36 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Gradient, diagonal } from './Gradient';
-import { entranceDelay, haptics, useReducedMotion } from '../lib/motion';
-import { gradients, motion, palette, radius, shadow, spacing, typography } from '../theme';
+import { Icon, type IconName } from './Icon';
+import { haptics, useReducedMotion } from '../lib/motion';
+import { motion, palette, radius, shadow, spacing, typography } from '../theme';
 
-/* ------------------------------------------------------------------ surface */
+/* ----------------------------------------------------------------- surfaces */
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
   padded?: boolean;
+  /** Lifts the card off the page. Used once per screen at most. */
   raised?: boolean;
+  /** A quiet filled block, for secondary information. */
+  subtle?: boolean;
   index?: number;
   style?: StyleProp<ViewStyle>;
 }
 
-/** The standard elevated card, with an optional staggered entrance. */
-export function Card({ children, padded = true, raised = false, index, style, ...rest }: CardProps) {
+export function Card({ children, padded = true, raised = false, subtle = false, index, style, ...rest }: CardProps) {
   const reduced = useReducedMotion();
   const entering =
-    index === undefined || reduced ? undefined : FadeInDown.duration(motion.base).delay(entranceDelay(index));
+    index === undefined || reduced
+      ? undefined
+      : FadeInDown.duration(motion.base).delay(Math.min(index * motion.stagger, 220));
 
   return (
     <Animated.View
       entering={entering}
       style={[
         styles.card,
+        subtle && styles.cardSubtle,
         raised && styles.cardRaised,
         padded && { padding: spacing.lg },
         style,
@@ -56,13 +66,14 @@ export function Card({ children, padded = true, raised = false, index, style, ..
   );
 }
 
-/** A card carrying the ember gradient, reserved for the primary summary. */
-export function GradientCard({ children, style, colors }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; colors?: readonly string[] }) {
-  return (
-    <Gradient colors={colors ?? gradients.ember} {...diagonal} style={[styles.gradientCard, style]}>
-      {children}
-    </Gradient>
-  );
+/** An inverted block. Reserved for the single headline figure on a screen. */
+export function FeatureCard({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  return <View style={[styles.feature, style]}>{children}</View>;
+}
+
+/** A plain horizontal rule. */
+export function Divider({ style, inset = 0 }: { style?: StyleProp<ViewStyle>; inset?: number }) {
+  return <View style={[styles.divider, inset ? { marginLeft: inset } : null, style]} />;
 }
 
 /* ------------------------------------------------------------------ buttons */
@@ -72,7 +83,7 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
-  icon?: React.ReactNode;
+  icon?: IconName;
   full?: boolean;
   style?: StyleProp<ViewStyle>;
 }
@@ -94,30 +105,9 @@ export function Button({
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   const isDisabled = disabled || loading;
 
-  const heights = { sm: 38, md: 48, lg: 54 };
-  const labelStyle = size === 'sm' ? typography.caption : typography.bodyStrong;
-
-  const body = (
-    <>
-      {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? palette.white : palette.textPrimary} size="small" />
-      ) : (
-        <>
-          {icon}
-          <Text
-            style={[
-              labelStyle,
-              { color: variant === 'primary' ? palette.white : variant === 'danger' ? palette.negative : palette.textPrimary },
-              icon ? { marginLeft: spacing.xs } : null,
-            ]}
-            numberOfLines={1}
-          >
-            {label}
-          </Text>
-        </>
-      )}
-    </>
-  );
+  const heights = { sm: 36, md: 48, lg: 54 };
+  const inverted = variant === 'primary';
+  const tint = inverted ? palette.inkInverse : palette.ink;
 
   return (
     <Animated.View style={[animated, full && { width: '100%' }]}>
@@ -127,7 +117,7 @@ export function Button({
         accessibilityLabel={label}
         disabled={isDisabled}
         onPressIn={() => {
-          if (!reduced) scale.value = withSpring(0.96, motion.spring);
+          if (!reduced) scale.value = withSpring(0.975, motion.spring);
         }}
         onPressOut={() => {
           scale.value = withSpring(1, motion.spring);
@@ -136,26 +126,74 @@ export function Button({
           haptics.tap();
           onPress?.(event);
         }}
-        style={[
+        style={({ pressed }) => [
           styles.button,
-          { height: heights[size], opacity: isDisabled ? 0.55 : 1 },
+          { height: heights[size] },
+          inverted && styles.buttonPrimary,
           variant === 'secondary' && styles.buttonSecondary,
           variant === 'ghost' && styles.buttonGhost,
           variant === 'danger' && styles.buttonDanger,
+          pressed && inverted && { backgroundColor: palette.accentPressed },
+          pressed && !inverted && { backgroundColor: palette.surfaceSunken },
+          isDisabled && { opacity: 0.4 },
           style,
         ]}
         {...rest}
       >
-        {variant === 'primary' ? (
-          <Gradient colors={gradients.ember} {...diagonal} style={StyleSheet.absoluteFill} />
-        ) : null}
-        <View style={styles.buttonInner}>{body}</View>
+        {loading ? (
+          <ActivityIndicator color={tint} size="small" />
+        ) : (
+          <View style={styles.buttonInner}>
+            {icon ? <Icon name={icon} size={16} color={tint} style={{ marginRight: spacing.xs }} /> : null}
+            <Text
+              style={[
+                size === 'sm' ? typography.captionMedium : typography.bodyMedium,
+                { color: tint },
+              ]}
+              numberOfLines={1}
+            >
+              {label}
+            </Text>
+          </View>
+        )}
       </Pressable>
     </Animated.View>
   );
 }
 
-/** A pressable that scales slightly on touch, used for cards and rows. */
+/** A square icon-only control, for back and close. */
+export function IconButton({
+  name,
+  onPress,
+  accessibilityLabel,
+  bordered = true,
+}: {
+  name: IconName;
+  onPress?: () => void;
+  accessibilityLabel: string;
+  bordered?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      hitSlop={8}
+      onPress={() => {
+        haptics.tap();
+        onPress?.();
+      }}
+      style={({ pressed }) => [
+        styles.iconButton,
+        bordered && styles.iconButtonBordered,
+        pressed && { backgroundColor: palette.surfaceSunken },
+      ]}
+    >
+      <Icon name={name} size={18} color={palette.ink} />
+    </Pressable>
+  );
+}
+
+/** A row that scales slightly on touch. */
 export function PressableScale({
   children,
   onPress,
@@ -185,7 +223,7 @@ export function PressableScale({
         accessibilityHint={accessibilityHint}
         disabled={disabled}
         onPressIn={() => {
-          if (!reduced) scale.value = withSpring(0.975, motion.spring);
+          if (!reduced) scale.value = withSpring(0.99, motion.spring);
         }}
         onPressOut={() => {
           scale.value = withSpring(1, motion.spring);
@@ -198,7 +236,7 @@ export function PressableScale({
           haptics.select();
           onLongPress?.();
         }}
-        style={style}
+        style={({ pressed }) => [pressed && { backgroundColor: palette.surfaceSubtle }, style]}
       >
         {children}
       </Pressable>
@@ -212,16 +250,13 @@ export function Chip({
   label,
   active = false,
   onPress,
-  color,
-  compact = false,
+  icon,
 }: {
   label: string;
   active?: boolean;
   onPress?: () => void;
-  color?: string;
-  compact?: boolean;
+  icon?: IconName;
 }) {
-  const tint = color ?? palette.ember;
   return (
     <Pressable
       accessibilityRole="button"
@@ -230,17 +265,22 @@ export function Chip({
         haptics.select();
         onPress?.();
       }}
-      style={[
+      style={({ pressed }) => [
         styles.chip,
-        compact && { paddingVertical: 6, paddingHorizontal: spacing.sm },
-        active && { backgroundColor: `${tint}22`, borderColor: `${tint}66` },
+        active && styles.chipActive,
+        pressed && !active && { backgroundColor: palette.surfaceSunken },
       ]}
     >
+      {icon ? (
+        <Icon
+          name={icon}
+          size={13}
+          color={active ? palette.inkInverse : palette.inkSecondary}
+          style={{ marginRight: 6 }}
+        />
+      ) : null}
       <Text
-        style={[
-          typography.caption,
-          { color: active ? tint : palette.textSecondary },
-        ]}
+        style={[typography.captionMedium, { color: active ? palette.inkInverse : palette.inkSecondary }]}
         numberOfLines={1}
       >
         {label}
@@ -249,34 +289,45 @@ export function Chip({
   );
 }
 
-/** A small coloured pill for statuses. */
-export function Pill({ label, color }: { label: string; color: string }) {
+/** A quiet status marker. Outlined, never filled with colour. */
+export function Pill({ label, strong = false }: { label: string; strong?: boolean }) {
   return (
-    <View style={[styles.pill, { backgroundColor: `${color}1F` }]}>
-      <Text style={[typography.micro, { color, textTransform: 'uppercase' }]}>{label}</Text>
+    <View style={[styles.pill, strong && styles.pillStrong]}>
+      <Text
+        style={[
+          typography.label,
+          { color: strong ? palette.inkInverse : palette.inkTertiary, textTransform: 'uppercase' },
+        ]}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
 
-/* ------------------------------------------------------------------ headings */
+/* ----------------------------------------------------------------- headings */
 
 export function SectionHeading({
   title,
   action,
   onAction,
   caption,
+  style,
 }: {
   title: string;
   action?: string;
   onAction?: () => void;
   caption?: string;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={styles.sectionHeading}>
+    <View style={[styles.sectionHeading, style]}>
       <View style={{ flex: 1 }}>
-        <Text style={[typography.micro, { color: palette.textTertiary, textTransform: 'uppercase' }]}>{title}</Text>
+        <Text style={[typography.label, { color: palette.inkTertiary, textTransform: 'uppercase' }]}>
+          {title}
+        </Text>
         {caption ? (
-          <Text style={[typography.caption, { color: palette.textSecondary, marginTop: 2 }]}>{caption}</Text>
+          <Text style={[typography.caption, { color: palette.inkTertiary, marginTop: 4 }]}>{caption}</Text>
         ) : null}
       </View>
       {action ? (
@@ -286,38 +337,82 @@ export function SectionHeading({
             haptics.tap();
             onAction?.();
           }}
-          hitSlop={8}
+          hitSlop={10}
+          style={styles.sectionAction}
         >
-          <Text style={[typography.caption, { color: palette.ember }]}>{action}</Text>
+          <Text style={[typography.captionMedium, { color: palette.ink }]}>{action}</Text>
+          <Icon name="chevron" size={14} color={palette.ink} style={{ marginLeft: 2 }} />
         </Pressable>
       ) : null}
     </View>
   );
 }
 
-/* -------------------------------------------------------------------- states */
+/** A label above a figure, the pattern every metric on the app uses. */
+export function Metric({
+  label,
+  value,
+  caption,
+  align = 'left',
+}: {
+  label: string;
+  value: React.ReactNode;
+  caption?: string;
+  align?: 'left' | 'right';
+}) {
+  return (
+    <View style={{ alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
+      <Text style={[typography.label, { color: palette.inkTertiary, textTransform: 'uppercase' }]}>
+        {label}
+      </Text>
+      <View style={{ marginTop: 6 }}>{value}</View>
+      {caption ? (
+        <Text style={[typography.caption, { color: palette.inkTertiary, marginTop: 3 }]}>{caption}</Text>
+      ) : null}
+    </View>
+  );
+}
 
-/** Shimmering placeholder used while first data loads. */
-export function Skeleton({ height = 16, width = '100%', style }: { height?: number; width?: number | string; style?: StyleProp<ViewStyle> }) {
+/* ------------------------------------------------------------------- states */
+
+export function Skeleton({
+  height = 16,
+  width = '100%',
+  style,
+}: {
+  height?: number;
+  width?: number | string;
+  style?: StyleProp<ViewStyle>;
+}) {
   const reduced = useReducedMotion();
-  const opacity = useSharedValue(0.4);
+  const opacity = useSharedValue(0.55);
 
   React.useEffect(() => {
     if (reduced) return;
-    opacity.value = withTiming(0.85, { duration: 700 });
-    const timer = setInterval(() => {
-      opacity.value = withTiming(opacity.value > 0.6 ? 0.4 : 0.85, { duration: 700 });
-    }, 700);
+    const tick = () => {
+      opacity.value = withTiming(opacity.value > 0.7 ? 0.5 : 0.9, { duration: 650 });
+    };
+    tick();
+    const timer = setInterval(tick, 650);
     return () => clearInterval(timer);
   }, [opacity, reduced]);
 
-  const animated = useAnimatedStyle(() => ({ opacity: reduced ? 0.5 : opacity.value }));
+  const animated = useAnimatedStyle(() => ({ opacity: reduced ? 0.6 : opacity.value }));
 
   return (
     <Animated.View
       accessibilityRole="progressbar"
       accessibilityLabel="Loading"
-      style={[{ height, width: width as ViewStyle['width'], borderRadius: radius.sm, backgroundColor: palette.surfaceHigh }, animated, style]}
+      style={[
+        {
+          height,
+          width: width as ViewStyle['width'],
+          borderRadius: radius.sm,
+          backgroundColor: palette.surfaceSunken,
+        },
+        animated,
+        style,
+      ]}
     />
   );
 }
@@ -327,20 +422,31 @@ export function EmptyState({
   message,
   action,
   onAction,
+  icon = 'info',
 }: {
   title: string;
   message: string;
   action?: string;
   onAction?: () => void;
+  icon?: IconName;
 }) {
   return (
     <Animated.View entering={FadeIn.duration(motion.base)} style={styles.empty}>
-      <View style={styles.emptyDot} />
-      <Text style={[typography.subheading, { color: palette.textPrimary, marginTop: spacing.md }]}>{title}</Text>
-      <Text style={[typography.body, { color: palette.textTertiary, textAlign: 'center', marginTop: spacing.xs }]}>
+      <View style={styles.emptyIcon}>
+        <Icon name={icon} size={20} color={palette.inkTertiary} />
+      </View>
+      <Text style={[typography.subheading, { color: palette.ink, marginTop: spacing.md }]}>{title}</Text>
+      <Text
+        style={[
+          typography.body,
+          { color: palette.inkTertiary, textAlign: 'center', marginTop: 6, maxWidth: 280 },
+        ]}
+      >
         {message}
       </Text>
-      {action ? <Button label={action} variant="secondary" size="sm" onPress={onAction} style={{ marginTop: spacing.lg }} /> : null}
+      {action ? (
+        <Button label={action} variant="secondary" size="sm" onPress={onAction} style={{ marginTop: spacing.lg }} />
+      ) : null}
     </Animated.View>
   );
 }
@@ -348,28 +454,49 @@ export function EmptyState({
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <View style={styles.empty}>
-      <Text style={[typography.subheading, { color: palette.textPrimary }]}>Could not load</Text>
-      <Text style={[typography.body, { color: palette.textTertiary, textAlign: 'center', marginTop: spacing.xs }]}>
+      <View style={styles.emptyIcon}>
+        <Icon name="alert" size={20} color={palette.ink} />
+      </View>
+      <Text style={[typography.subheading, { color: palette.ink, marginTop: spacing.md }]}>
+        Could not load
+      </Text>
+      <Text
+        style={[
+          typography.body,
+          { color: palette.inkTertiary, textAlign: 'center', marginTop: 6, maxWidth: 280 },
+        ]}
+      >
         {message}
       </Text>
-      {onRetry ? <Button label="Try again" variant="secondary" size="sm" onPress={onRetry} style={{ marginTop: spacing.lg }} /> : null}
+      {onRetry ? (
+        <Button label="Try again" variant="secondary" size="sm" onPress={onRetry} style={{ marginTop: spacing.lg }} />
+      ) : null}
     </View>
   );
 }
 
-/** A banner shown when the visible figures come from seeded demo records. */
+/** Shown when the figures on screen come from seeded sample records. */
 export function DemoBanner() {
   return (
-    <View style={styles.demoBanner}>
-      <Text style={[typography.caption, { color: palette.warning }]}>
-        Demo data. These figures come from the sample records, not your own entries.
+    <View style={styles.notice}>
+      <Icon name="info" size={14} color={palette.inkTertiary} />
+      <Text style={[typography.caption, { color: palette.inkSecondary, flex: 1, marginLeft: spacing.xs }]}>
+        Sample data. These figures come from the demo records, not your own entries.
       </Text>
     </View>
   );
 }
 
-export function Divider({ style }: { style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.divider, style]} />;
+/** A quiet inline note. Carries meaning in words, never in tone. */
+export function Notice({ children, icon = 'info' }: { children: React.ReactNode; icon?: IconName }) {
+  return (
+    <View style={styles.notice}>
+      <Icon name={icon} size={14} color={palette.inkTertiary} />
+      <Text style={[typography.caption, { color: palette.inkSecondary, flex: 1, marginLeft: spacing.xs }]}>
+        {children}
+      </Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -377,73 +504,83 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.border,
   },
-  cardRaised: {
-    backgroundColor: palette.surfaceRaised,
-    ...shadow.card,
-  },
-  gradientCard: {
+  cardSubtle: { backgroundColor: palette.surfaceSubtle, borderColor: palette.border },
+  cardRaised: { ...shadow.raised, borderColor: palette.border },
+  feature: {
+    backgroundColor: palette.surfaceInverse,
     borderRadius: radius.xl,
     padding: spacing.xl,
-    ...shadow.glow,
   },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: palette.border },
   button: {
     borderRadius: radius.pill,
-    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
   },
-  buttonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  buttonPrimary: { backgroundColor: palette.accent },
   buttonSecondary: {
-    backgroundColor: palette.surfaceHigh,
+    backgroundColor: palette.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.borderStrong,
   },
-  buttonGhost: { backgroundColor: 'transparent' },
-  buttonDanger: { backgroundColor: palette.negativeSoft },
+  buttonGhost: { backgroundColor: palette.transparent },
+  buttonDanger: {
+    backgroundColor: palette.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.borderStrong,
+  },
+  buttonInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  iconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surface,
+  },
+  iconButtonBordered: { borderWidth: StyleSheet.hairlineWidth, borderColor: palette.border },
   chip: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
     backgroundColor: palette.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.borderStrong,
   },
+  chipActive: { backgroundColor: palette.accent, borderColor: palette.accent },
   pill: {
     paddingVertical: 3,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: 7,
     borderRadius: radius.xs,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.borderStrong,
     alignSelf: 'flex-start',
   },
-  sectionHeading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.xxs,
-  },
-  empty: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xxl,
-    paddingHorizontal: spacing.lg,
-  },
-  emptyDot: {
+  pillStrong: { backgroundColor: palette.accent, borderColor: palette.accent },
+  sectionHeading: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  sectionAction: { flexDirection: 'row', alignItems: 'center' },
+  empty: { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl },
+  emptyIcon: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: palette.emberSoft,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.emberGlow,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceSunken,
   },
-  demoBanner: {
-    backgroundColor: palette.warningSoft,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.xs,
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: palette.surfaceSubtle,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(245, 181, 68, 0.3)',
+    borderColor: palette.border,
   },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: palette.hairline },
 });

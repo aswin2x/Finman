@@ -142,8 +142,7 @@ export function RecurringSheet({
         options={categories.map((category) => ({
           value: category.id,
           label: category.name,
-          color: category.color,
-        }))}
+                  }))}
         scroll
         allowClear
       />

@@ -12,7 +12,7 @@ export default function Index() {
   if (status === 'loading') {
     return (
       <View style={styles.root}>
-        <ActivityIndicator color={palette.ember} />
+        <ActivityIndicator color={palette.ink} />
       </View>
     );
   }
@@ -21,5 +21,5 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.void },
+  root: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.page },
 });

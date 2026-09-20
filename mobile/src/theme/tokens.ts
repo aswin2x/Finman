@@ -1,76 +1,69 @@
+import type { TextStyle } from 'react-native';
+
 /**
- * Design tokens. Every colour, radius, space and type style in the app comes
- * from here. Nothing should hardcode a hex value outside this file.
+ * Design tokens.
  *
- * Direction: dark-first, calm and minimal. A warm ember gradient carries
- * emphasis; financial values stay in legible neutrals so numbers read first
- * and decoration second.
+ * Direction: strict monochrome on paper white. No hue anywhere, no gradients,
+ * no glow. Hierarchy comes from type scale, weight and whitespace; separation
+ * comes from hairline rules rather than fills or shadows.
+ *
+ * Nothing outside this file should define a colour, a radius or a type style.
  */
 
 export const palette = {
-  // Backgrounds, darkest to lightest.
-  void: '#0A0A0C',
-  base: '#0E0F13',
-  surface: '#16181F',
-  surfaceRaised: '#1D2029',
-  surfaceHigh: '#252935',
-  hairline: '#2B2F3C',
+  // Surfaces, lightest first. Cards are white on white, separated by a rule.
+  page: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceSubtle: '#FAFAFA',
+  surfaceSunken: '#F4F4F5',
+  surfaceInverse: '#0A0A0A',
 
-  // Text.
-  textPrimary: '#F5F6F8',
-  textSecondary: '#A3A8B8',
-  textTertiary: '#6E7486',
-  textInverse: '#0A0A0C',
+  // Rules. `border` is the default hairline; `borderStrong` marks emphasis.
+  border: '#EAEAEA',
+  borderStrong: '#D4D4D4',
+  borderInverse: '#262626',
 
-  // Warm accent taken from the reference's ember gradient.
-  ember: '#FF6B4A',
-  emberBright: '#FF8A5B',
-  emberDeep: '#E8452F',
-  emberSoft: 'rgba(255, 107, 74, 0.14)',
-  emberGlow: 'rgba(255, 107, 74, 0.28)',
+  // Ink.
+  ink: '#0A0A0A',
+  inkSecondary: '#525252',
+  inkTertiary: '#8A8A8E',
+  inkQuaternary: '#B4B4B8',
+  inkInverse: '#FFFFFF',
+  inkInverseSecondary: 'rgba(255,255,255,0.72)',
+  inkInverseTertiary: 'rgba(255,255,255,0.52)',
 
-  // Financial states. Chosen to stay legible on the dark surfaces above.
-  positive: '#3DD68C',
-  positiveSoft: 'rgba(61, 214, 140, 0.14)',
-  warning: '#F5B544',
-  warningSoft: 'rgba(245, 181, 68, 0.14)',
-  negative: '#FF5A5A',
-  negativeSoft: 'rgba(255, 90, 90, 0.14)',
-  neutral: '#8A8F98',
-  neutralSoft: 'rgba(138, 143, 152, 0.14)',
-  info: '#5B8FF9',
-  infoSoft: 'rgba(91, 143, 249, 0.14)',
+  // Interaction. Black is the only accent.
+  accent: '#0A0A0A',
+  accentPressed: '#262626',
+  accentSubtle: '#F4F4F5',
 
+  overlay: 'rgba(10,10,10,0.32)',
   white: '#FFFFFF',
   black: '#000000',
-  overlay: 'rgba(6, 7, 10, 0.72)',
+  transparent: 'transparent',
 } as const;
 
-/** Category swatches, kept apart from state colours so meaning never blurs. */
-export const categoryPalette = [
-  '#FF6B4A',
-  '#F2A65A',
-  '#5B8FF9',
-  '#9B8AFB',
-  '#FF8A65',
-  '#EC4899',
-  '#34D399',
-  '#FBBF24',
-  '#F87171',
-  '#38BDF8',
-  '#C084FC',
-  '#8A8F98',
+/**
+ * Ordered grays for categories and chart series: darkest carries the largest
+ * value, so rank reads without hue. Assign by position, never at random.
+ */
+export const dataRamp = [
+  '#0A0A0A',
+  '#3D3D3D',
+  '#5C5C5C',
+  '#787878',
+  '#949494',
+  '#ABABAB',
+  '#BFBFBF',
+  '#D0D0D0',
+  '#DEDEDE',
+  '#E8E8E8',
 ] as const;
 
-export const gradients = {
-  ember: ['#FF8A5B', '#FF6B4A', '#E8452F'] as const,
-  emberSubtle: ['rgba(255, 138, 91, 0.22)', 'rgba(232, 69, 47, 0.06)'] as const,
-  card: ['#1E212B', '#16181F'] as const,
-  screen: ['#0E0F13', '#0A0A0C'] as const,
-  positive: ['#3DD68C', '#1FA968'] as const,
-  negative: ['#FF7A7A', '#E23B3B'] as const,
-  glass: ['rgba(255,255,255,0.06)', 'rgba(255,255,255,0.01)'] as const,
-};
+/** Picks a ramp shade by rank, darkest first, flattening once the ramp runs out. */
+export function rampAt(index: number): string {
+  return dataRamp[Math.min(index, dataRamp.length - 1)];
+}
 
 export const spacing = {
   xxs: 4,
@@ -80,77 +73,113 @@ export const spacing = {
   lg: 20,
   xl: 24,
   xxl: 32,
-  xxxl: 44,
+  xxxl: 48,
+  section: 36,
 } as const;
 
+/** Restrained corners. Nothing is a pill except controls that must read as tappable. */
 export const radius = {
-  xs: 8,
-  sm: 12,
-  md: 16,
-  lg: 20,
-  xl: 28,
+  xs: 4,
+  sm: 8,
+  md: 10,
+  lg: 14,
+  xl: 18,
   pill: 999,
 } as const;
 
 /**
- * Type scale. `numeric` styles use tabular figures so digits do not jitter
- * while a value animates.
+ * Google Sans Flex, one family per weight. React Native cannot synthesise a
+ * weight for a custom font, so the family name carries it.
  */
-export const typography = {
-  display: { fontSize: 44, lineHeight: 50, fontWeight: '700' as const, letterSpacing: -1.2 },
-  balance: { fontSize: 38, lineHeight: 44, fontWeight: '700' as const, letterSpacing: -1 },
-  title: { fontSize: 26, lineHeight: 32, fontWeight: '700' as const, letterSpacing: -0.5 },
-  heading: { fontSize: 20, lineHeight: 26, fontWeight: '600' as const, letterSpacing: -0.3 },
-  subheading: { fontSize: 17, lineHeight: 23, fontWeight: '600' as const, letterSpacing: -0.2 },
-  body: { fontSize: 15, lineHeight: 21, fontWeight: '500' as const },
-  bodyStrong: { fontSize: 15, lineHeight: 21, fontWeight: '600' as const },
-  caption: { fontSize: 13, lineHeight: 18, fontWeight: '500' as const },
-  micro: { fontSize: 11, lineHeight: 15, fontWeight: '600' as const, letterSpacing: 0.6 },
+export const fonts = {
+  regular: 'GoogleSansFlex_400Regular',
+  medium: 'GoogleSansFlex_500Medium',
+  semibold: 'GoogleSansFlex_600SemiBold',
+  bold: 'GoogleSansFlex_700Bold',
 } as const;
 
-export const shadow = {
-  card: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
+/**
+ * Type scale. Figures use tabular lining numerals so digits do not shift
+ * while a value animates or a column scrolls.
+ */
+export const typography = {
+  /** The one number a screen is about. */
+  display: {
+    fontFamily: fonts.bold,
+    fontSize: 40,
+    lineHeight: 46,
+    letterSpacing: -1.4,
+    fontVariant: ['tabular-nums'],
   },
-  glow: {
-    shadowColor: palette.ember,
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 12,
+  figure: {
+    fontFamily: fonts.semibold,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.7,
+    fontVariant: ['tabular-nums'],
+  },
+  figureSmall: {
+    fontFamily: fonts.medium,
+    fontSize: 17,
+    lineHeight: 23,
+    letterSpacing: -0.3,
+    fontVariant: ['tabular-nums'],
+  },
+  title: { fontFamily: fonts.semibold, fontSize: 27, lineHeight: 33, letterSpacing: -0.7 },
+  heading: { fontFamily: fonts.semibold, fontSize: 19, lineHeight: 25, letterSpacing: -0.4 },
+  subheading: { fontFamily: fonts.medium, fontSize: 16, lineHeight: 22, letterSpacing: -0.2 },
+  body: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 21, letterSpacing: -0.1 },
+  bodyMedium: { fontFamily: fonts.medium, fontSize: 15, lineHeight: 21, letterSpacing: -0.1 },
+  caption: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18 },
+  captionMedium: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
+  /** Small uppercase section labels. Apply textTransform at the call site. */
+  label: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 14, letterSpacing: 0.7 },
+  mono: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    fontVariant: ['tabular-nums'],
+  },
+} as const satisfies Record<string, TextStyle>;
+
+/**
+ * Shadows are for things that genuinely float above the page. Cards do not
+ * use them; a hairline does that job.
+ */
+export const shadow = {
+  none: {},
+  raised: {
+    shadowColor: '#0A0A0A',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   sheet: {
-    shadowColor: '#000000',
-    shadowOpacity: 0.5,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: -6 },
-    elevation: 24,
+    shadowColor: '#0A0A0A',
+    shadowOpacity: 0.12,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 16,
   },
 } as const;
 
 /**
- * Motion. Durations are deliberately short: this is a tool people open many
- * times a day, so transitions must never feel like waiting.
+ * Motion. Short and quiet. This is a tool opened many times a day, so nothing
+ * should feel like waiting, and nothing loops.
  */
 export const motion = {
-  instant: 120,
-  fast: 200,
-  base: 280,
-  slow: 420,
-  counter: 900,
-  spring: { damping: 18, stiffness: 180, mass: 0.9 },
-  springSoft: { damping: 22, stiffness: 120, mass: 1 },
-  stagger: 45,
+  instant: 110,
+  fast: 180,
+  base: 240,
+  slow: 340,
+  counter: 720,
+  spring: { damping: 20, stiffness: 200, mass: 0.9 },
+  stagger: 38,
 } as const;
 
 export const layout = {
   screenPadding: spacing.lg,
-  cardPadding: spacing.lg,
-  tabBarHeight: 64,
-  headerHeight: 56,
-  hitSlop: { top: 8, bottom: 8, left: 8, right: 8 },
+  tabBarHeight: 60,
+  hairline: 1,
 } as const;

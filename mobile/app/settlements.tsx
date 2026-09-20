@@ -13,13 +13,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedNumber } from '../src/components/AnimatedNumber';
 import { Segmented } from '../src/components/fields';
-import { Gradient } from '../src/components/Gradient';
 import { ProgressBar } from '../src/components/ProgressBar';
 import {
   Button,
   Card,
   EmptyState,
   ErrorState,
+  IconButton,
   Pill,
   PressableScale,
   SectionHeading,
@@ -30,7 +30,7 @@ import { formatCurrency, formatDate } from '../src/lib/format';
 import { useReducedMotion } from '../src/lib/motion';
 import { useSettlementSummary, useSettlements } from '../src/lib/queries';
 import type { Settlement } from '../src/lib/types';
-import { gradients, motion, palette, radius, spacing, typography } from '../src/theme';
+import { motion, palette, radius, spacing, typography } from '../src/theme';
 
 const TABS = [
   { value: 'pending', label: 'Pending' },
@@ -62,24 +62,19 @@ export default function SettlementsScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={palette.ember} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={palette.ink} />}
       >
         <View style={styles.navBar}>
-          <PressableScale onPress={() => router.back()} accessibilityLabel="Go back">
-            <View style={styles.backButton}>
-              <Text style={[typography.body, { color: palette.textPrimary }]}>Back</Text>
-            </View>
-          </PressableScale>
+          <IconButton name="back" accessibilityLabel="Go back" onPress={() => router.back()} />
         </View>
 
         <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base)}>
-          <Text style={[typography.title, { color: palette.textPrimary }]}>Settlements</Text>
-          <Text style={[typography.caption, { color: palette.textTertiary, marginTop: 2 }]}>
+          <Text style={[typography.title, { color: palette.ink }]}>Settlements</Text>
+          <Text style={[typography.caption, { color: palette.inkTertiary, marginTop: 2 }]}>
             Money between you and people outside the household
           </Text>
         </Animated.View>
@@ -91,17 +86,17 @@ export default function SettlementsScreen() {
             style={styles.summaryRow}
           >
             <Card style={{ flex: 1 }}>
-              <Text style={[typography.micro, { color: palette.textTertiary }]}>WE OWE</Text>
+              <Text style={[typography.label, { color: palette.inkTertiary }]}>WE OWE</Text>
               <AnimatedNumber
                 value={summary.we_owe_total}
-                style={[typography.heading, { color: palette.negative, marginTop: spacing.xxs }]}
+                style={[typography.heading, { color: palette.ink, marginTop: spacing.xxs }]}
               />
             </Card>
             <Card style={{ flex: 1 }}>
-              <Text style={[typography.micro, { color: palette.textTertiary }]}>OWED TO US</Text>
+              <Text style={[typography.label, { color: palette.inkTertiary }]}>OWED TO US</Text>
               <AnimatedNumber
                 value={summary.owed_to_us_total}
-                style={[typography.heading, { color: palette.positive, marginTop: spacing.xxs }]}
+                style={[typography.heading, { color: palette.ink, marginTop: spacing.xxs }]}
               />
             </Card>
           </Animated.View>
@@ -109,9 +104,9 @@ export default function SettlementsScreen() {
 
         {summary && summary.net_position !== 0 ? (
           <View style={styles.netBox}>
-            <Text style={[typography.caption, { color: palette.textSecondary }]}>
+            <Text style={[typography.caption, { color: palette.inkSecondary }]}>
               Net position: {summary.net_position >= 0 ? 'you are owed ' : 'you owe '}
-              <Text style={{ color: summary.net_position >= 0 ? palette.positive : palette.negative }}>
+              <Text style={{ color: summary.net_position >= 0 ? palette.ink : palette.ink }}>
                 {formatCurrency(Math.abs(summary.net_position))}
               </Text>
             </Text>
@@ -120,7 +115,7 @@ export default function SettlementsScreen() {
 
         {summary && summary.unverified_count > 0 ? (
           <View style={styles.notice}>
-            <Text style={[typography.caption, { color: palette.warning }]}>
+            <Text style={[typography.caption, { color: palette.inkSecondary }]}>
               {summary.unverified_count}{' '}
               {summary.unverified_count === 1 ? 'amount has' : 'amounts have'} not been confirmed with the other
               person yet. Open one to mark it as confirmed.
@@ -186,7 +181,7 @@ export default function SettlementsScreen() {
       </ScrollView>
 
       <View style={[styles.fabWrap, { bottom: insets.bottom + spacing.md }]} pointerEvents="box-none">
-        <Button label="+  Add Settlement" onPress={() => setSheetOpen(true)} full />
+        <Button label="Add Settlement" icon="plus" onPress={() => setSheetOpen(true)} full />
       </View>
 
       <SettlementSheet visible={sheetOpen} onClose={() => setSheetOpen(false)} />
@@ -205,7 +200,7 @@ function SettlementCard({
 }) {
   const reduced = useReducedMotion();
   const outflow = row.direction === 'we_owe';
-  const tint = outflow ? palette.negative : palette.positive;
+  const tint = outflow ? palette.ink : palette.ink;
   const paidPct = row.total_amount > 0 ? (row.paid_amount / row.total_amount) * 100 : 0;
 
   return (
@@ -219,22 +214,22 @@ function SettlementCard({
         <Card>
           <View style={styles.cardHead}>
             <View style={[styles.avatar, { backgroundColor: `${tint}1F`, borderColor: `${tint}44` }]}>
-              <Text style={[typography.bodyStrong, { color: tint }]}>
+              <Text style={[typography.bodyMedium, { color: tint }]}>
                 {row.person_name.charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' }}>
-                <Text style={[typography.subheading, { color: palette.textPrimary }]} numberOfLines={1}>
+                <Text style={[typography.subheading, { color: palette.ink }]} numberOfLines={1}>
                   {row.person_name}
                 </Text>
-                {row.status === 'settled' ? <Pill label="Settled" color={palette.positive} /> : null}
-                {row.status === 'partial' ? <Pill label="Partial" color={palette.warning} /> : null}
+                {row.status === 'settled' ? <Pill label="Settled" /> : null}
+                {row.status === 'partial' ? <Pill label="Partial" /> : null}
                 {!row.is_verified && row.status !== 'settled' ? (
-                  <Pill label="Unconfirmed" color={palette.neutral} />
+                  <Pill label="Unconfirmed" />
                 ) : null}
               </View>
-              <Text style={[typography.caption, { color: palette.textTertiary, marginTop: 2 }]}>
+              <Text style={[typography.caption, { color: palette.inkTertiary, marginTop: 2 }]}>
                 {outflow ? 'You owe' : 'Owes you'}
                 {row.expected_date ? ` · by ${formatDate(row.expected_date)}` : ''}
               </Text>
@@ -244,7 +239,7 @@ function SettlementCard({
                 {formatCurrency(row.remaining_amount)}
               </Text>
               {row.paid_amount > 0 ? (
-                <Text style={[typography.micro, { color: palette.textTertiary }]}>
+                <Text style={[typography.label, { color: palette.inkTertiary }]}>
                   of {formatCurrency(row.total_amount)}
                 </Text>
               ) : null}
@@ -253,8 +248,8 @@ function SettlementCard({
 
           {row.paid_amount > 0 && row.status !== 'settled' ? (
             <View style={{ marginTop: spacing.sm }}>
-              <ProgressBar percent={paidPct} color={tint} height={4} />
-              <Text style={[typography.micro, { color: palette.textTertiary, marginTop: 5 }]}>
+              <ProgressBar percent={paidPct} fill={tint} height={4} />
+              <Text style={[typography.label, { color: palette.inkTertiary, marginTop: 5 }]}>
                 {formatCurrency(row.paid_amount)} paid so far
               </Text>
             </View>
@@ -266,31 +261,23 @@ function SettlementCard({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
-  content: { paddingHorizontal: spacing.lg, gap: spacing.lg },
+  root: { flex: 1, backgroundColor: palette.page },
+  content: { paddingHorizontal: spacing.lg, gap: spacing.xl },
   navBar: { flexDirection: 'row' },
-  backButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: palette.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
-  },
   summaryRow: { flexDirection: 'row', gap: spacing.sm },
   netBox: {
     backgroundColor: palette.surface,
     borderRadius: radius.sm,
     padding: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.border,
   },
   notice: {
-    backgroundColor: palette.warningSoft,
-    borderRadius: radius.sm,
+    backgroundColor: palette.surfaceSubtle,
+    borderRadius: radius.md,
     padding: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(245,181,68,0.3)',
+    borderColor: palette.border,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   avatar: {

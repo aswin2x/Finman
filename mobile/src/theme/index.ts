@@ -1,9 +1,20 @@
-import { categoryPalette, gradients, layout, motion, palette, radius, shadow, spacing, typography } from './tokens';
+import {
+  dataRamp,
+  fonts,
+  layout,
+  motion,
+  palette,
+  radius,
+  rampAt,
+  shadow,
+  spacing,
+  typography,
+} from './tokens';
 
 export const theme = {
   color: palette,
-  categoryPalette,
-  gradients,
+  dataRamp,
+  fonts,
   spacing,
   radius,
   typography,
@@ -13,44 +24,43 @@ export const theme = {
 } as const;
 
 export type Theme = typeof theme;
-export type FinancialState = 'positive' | 'warning' | 'negative' | 'neutral';
 
-/** Maps a signed amount to the colour that should carry it. */
-export function amountColor(value: number, invert = false): string {
-  if (value === 0) return palette.textSecondary;
-  const good = invert ? value < 0 : value > 0;
-  return good ? palette.positive : palette.negative;
-}
+/**
+ * State is carried by ink weight and wording, never by hue.
+ *
+ * `emphasis` is for a figure that needs attention (over budget, money owed
+ * out). `muted` recedes. Callers pair these with an explicit word such as
+ * "over" or "left" so the meaning never rests on tone alone.
+ */
+export type Emphasis = 'strong' | 'normal' | 'muted';
 
-/** Maps budget usage to a state colour, mirroring the backend's thresholds. */
-export function stateColor(state: FinancialState | string): string {
-  switch (state) {
-    case 'positive':
-    case 'on_track':
-      return palette.positive;
-    case 'warning':
-      return palette.warning;
-    case 'negative':
-    case 'over':
-      return palette.negative;
+export function inkFor(emphasis: Emphasis): string {
+  switch (emphasis) {
+    case 'strong':
+      return palette.ink;
+    case 'muted':
+      return palette.inkTertiary;
     default:
-      return palette.neutral;
+      return palette.inkSecondary;
   }
 }
 
-export function stateSoftColor(state: FinancialState | string): string {
-  switch (state) {
-    case 'positive':
-    case 'on_track':
-      return palette.positiveSoft;
-    case 'warning':
-      return palette.warningSoft;
-    case 'negative':
-    case 'over':
-      return palette.negativeSoft;
-    default:
-      return palette.neutralSoft;
-  }
+export function fontFor(emphasis: Emphasis): string {
+  return emphasis === 'strong' ? fonts.semibold : fonts.regular;
 }
 
-export { categoryPalette, gradients, layout, motion, palette, radius, shadow, spacing, typography };
+/** Budget and debt states map to ink weight, with the label doing the talking. */
+export function stateInk(state: string): string {
+  return state === 'over' ? palette.ink : state === 'warning' ? palette.inkSecondary : palette.inkTertiary;
+}
+
+export function stateFont(state: string): string {
+  return state === 'over' ? fonts.semibold : fonts.medium;
+}
+
+/** The fill for a progress bar. Over-budget reads darkest. */
+export function stateFill(state: string): string {
+  return state === 'over' ? palette.ink : state === 'warning' ? '#5C5C5C' : '#8A8A8E';
+}
+
+export { dataRamp, fonts, layout, motion, palette, radius, rampAt, shadow, spacing, typography };

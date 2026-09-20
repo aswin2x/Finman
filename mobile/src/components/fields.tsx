@@ -13,9 +13,10 @@ import {
 } from 'react-native';
 import { Controller, type Control, type FieldValues, type Path } from 'react-hook-form';
 
+import { Icon } from './Icon';
 import { formatDate, parseISODate, toISODate } from '../lib/format';
 import { haptics } from '../lib/motion';
-import { palette, radius, spacing, typography } from '../theme';
+import { fonts, palette, radius, spacing, typography } from '../theme';
 
 function FieldShell({
   label,
@@ -30,14 +31,18 @@ function FieldShell({
 }) {
   return (
     <View style={{ gap: spacing.xs }}>
-      {label ? <Text style={[typography.micro, { color: palette.textTertiary }]}>{label.toUpperCase()}</Text> : null}
+      {label ? (
+        <Text style={[typography.label, { color: palette.inkTertiary, textTransform: 'uppercase' }]}>
+          {label}
+        </Text>
+      ) : null}
       {children}
       {error ? (
-        <Text style={[typography.caption, { color: palette.negative }]} accessibilityLiveRegion="polite">
+        <Text style={[typography.caption, { color: palette.ink }]} accessibilityLiveRegion="polite">
           {error}
         </Text>
       ) : hint ? (
-        <Text style={[typography.caption, { color: palette.textTertiary }]}>{hint}</Text>
+        <Text style={[typography.caption, { color: palette.inkQuaternary }]}>{hint}</Text>
       ) : null}
     </View>
   );
@@ -69,7 +74,7 @@ export function TextField<T extends FieldValues>({ control, name, label, hint, e
               field.onBlur();
             }}
             onFocus={() => setFocused(true)}
-            placeholderTextColor={palette.textTertiary}
+            placeholderTextColor={palette.inkQuaternary}
             style={[
               styles.input,
               focused && styles.inputFocused,
@@ -96,22 +101,27 @@ export function AmountField<T extends FieldValues>({
   label?: string;
   autoFocus?: boolean;
 }) {
+  const [focused, setFocused] = useState(false);
   return (
     <Controller
       control={control}
       name={name}
       render={({ field, fieldState }) => (
         <FieldShell label={label} error={fieldState.error?.message}>
-          <View style={styles.amountWrap}>
+          <View style={[styles.amountWrap, focused && styles.inputFocused]}>
             <Text style={styles.amountSymbol}>{'₹'}</Text>
             <TextInput
               value={field.value === null || field.value === undefined ? '' : String(field.value)}
               onChangeText={(text) => field.onChange(text.replace(/[^0-9.]/g, ''))}
-              onBlur={field.onBlur}
+              onBlur={() => {
+                setFocused(false);
+                field.onBlur();
+              }}
+              onFocus={() => setFocused(true)}
               keyboardType="decimal-pad"
               inputMode="decimal"
               placeholder="0"
-              placeholderTextColor={palette.textTertiary}
+              placeholderTextColor={palette.inkQuaternary}
               autoFocus={autoFocus}
               style={styles.amountInput}
               accessibilityLabel={label}
@@ -128,7 +138,6 @@ export function AmountField<T extends FieldValues>({
 export interface Option {
   value: string;
   label: string;
-  color?: string;
 }
 
 /** A horizontal option picker. Wraps for short lists, scrolls for long ones. */
@@ -156,7 +165,6 @@ export function OptionField<T extends FieldValues>({
       render={({ field, fieldState }) => {
         const chips = options.map((option) => {
           const active = field.value === option.value;
-          const tint = option.color ?? palette.ember;
           return (
             <Pressable
               key={option.value}
@@ -166,13 +174,19 @@ export function OptionField<T extends FieldValues>({
                 haptics.select();
                 field.onChange(allowClear && active ? null : option.value);
               }}
-              style={[
+              style={({ pressed }) => [
                 styles.option,
-                active && { backgroundColor: `${tint}22`, borderColor: `${tint}66` },
+                active && styles.optionActive,
+                pressed && !active && { backgroundColor: palette.surfaceSunken },
               ]}
             >
-              {option.color ? <View style={[styles.optionDot, { backgroundColor: option.color }]} /> : null}
-              <Text style={[typography.caption, { color: active ? tint : palette.textSecondary }]} numberOfLines={1}>
+              <Text
+                style={[
+                  typography.captionMedium,
+                  { color: active ? palette.inkInverse : palette.inkSecondary },
+                ]}
+                numberOfLines={1}
+              >
                 {option.label}
               </Text>
             </Pressable>
@@ -218,19 +232,16 @@ export function DateField<T extends FieldValues>({
       control={control}
       name={name}
       render={({ field, fieldState }) => {
+        const todayISO = toISODate(new Date());
+        const yesterdayISO = toISODate(new Date(Date.now() - 86400000));
         const current = field.value ? parseISODate(String(field.value)) : new Date();
+
         const shift = (days: number) => {
           const next = new Date(current);
           next.setDate(next.getDate() + days);
           haptics.select();
           field.onChange(toISODate(next));
         };
-        const quick = [
-          { label: 'Today', offset: 0 },
-          { label: 'Yesterday', offset: -1 },
-        ];
-        const todayISO = toISODate(new Date());
-        const yesterdayISO = toISODate(new Date(Date.now() - 86400000));
 
         return (
           <FieldShell label={label} hint={hint} error={fieldState.error?.message}>
@@ -239,12 +250,12 @@ export function DateField<T extends FieldValues>({
                 accessibilityRole="button"
                 accessibilityLabel="Previous day"
                 onPress={() => shift(-1)}
-                style={styles.dateStep}
+                style={({ pressed }) => [styles.dateStep, pressed && { backgroundColor: palette.surfaceSunken }]}
               >
-                <Text style={[typography.subheading, { color: palette.textSecondary }]}>-</Text>
+                <Icon name="minus" size={16} color={palette.inkSecondary} />
               </Pressable>
               <View style={styles.dateValue}>
-                <Text style={[typography.bodyStrong, { color: palette.textPrimary }]}>
+                <Text style={[typography.bodyMedium, { color: palette.ink }]}>
                   {formatDate(String(field.value ?? todayISO))}
                 </Text>
               </View>
@@ -252,15 +263,18 @@ export function DateField<T extends FieldValues>({
                 accessibilityRole="button"
                 accessibilityLabel="Next day"
                 onPress={() => shift(1)}
-                style={styles.dateStep}
+                style={({ pressed }) => [styles.dateStep, pressed && { backgroundColor: palette.surfaceSunken }]}
               >
-                <Text style={[typography.subheading, { color: palette.textSecondary }]}>+</Text>
+                <Icon name="plus" size={16} color={palette.inkSecondary} />
               </Pressable>
             </View>
+
             <View style={{ flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs }}>
-              {quick.map((item) => {
-                const iso = item.offset === 0 ? todayISO : yesterdayISO;
-                const active = field.value === iso;
+              {[
+                { label: 'Today', iso: todayISO },
+                { label: 'Yesterday', iso: yesterdayISO },
+              ].map((item) => {
+                const active = field.value === item.iso;
                 return (
                   <Pressable
                     key={item.label}
@@ -268,11 +282,16 @@ export function DateField<T extends FieldValues>({
                     accessibilityState={{ selected: active }}
                     onPress={() => {
                       haptics.select();
-                      field.onChange(iso);
+                      field.onChange(item.iso);
                     }}
-                    style={[styles.option, active && { backgroundColor: palette.emberSoft, borderColor: palette.emberGlow }]}
+                    style={[styles.option, active && styles.optionActive]}
                   >
-                    <Text style={[typography.caption, { color: active ? palette.ember : palette.textSecondary }]}>
+                    <Text
+                      style={[
+                        typography.captionMedium,
+                        { color: active ? palette.inkInverse : palette.inkSecondary },
+                      ]}
+                    >
                       {item.label}
                     </Text>
                   </Pressable>
@@ -306,9 +325,9 @@ export function SwitchField<T extends FieldValues>({
       render={({ field }) => (
         <View style={styles.switchRow}>
           <View style={{ flex: 1, marginRight: spacing.md }}>
-            <Text style={[typography.body, { color: palette.textPrimary }]}>{label}</Text>
+            <Text style={[typography.body, { color: palette.ink }]}>{label}</Text>
             {hint ? (
-              <Text style={[typography.caption, { color: palette.textTertiary, marginTop: 2 }]}>{hint}</Text>
+              <Text style={[typography.caption, { color: palette.inkQuaternary, marginTop: 3 }]}>{hint}</Text>
             ) : null}
           </View>
           <Switch
@@ -317,8 +336,9 @@ export function SwitchField<T extends FieldValues>({
               haptics.select();
               field.onChange(value);
             }}
-            trackColor={{ false: palette.surfaceHigh, true: palette.emberGlow }}
-            thumbColor={Platform.OS === 'android' ? (field.value ? palette.ember : palette.textTertiary) : undefined}
+            trackColor={{ false: palette.surfaceSunken, true: palette.ink }}
+            thumbColor={Platform.OS === 'android' ? palette.white : undefined}
+            ios_backgroundColor={palette.surfaceSunken}
             accessibilityLabel={label}
           />
         </View>
@@ -327,7 +347,7 @@ export function SwitchField<T extends FieldValues>({
   );
 }
 
-/** A plain uncontrolled segmented control, for filters outside forms. */
+/** An uncontrolled segmented control, for filters outside forms. */
 export function Segmented({
   options,
   value,
@@ -354,8 +374,8 @@ export function Segmented({
           >
             <Text
               style={[
-                typography.caption,
-                { color: active ? palette.textPrimary : palette.textTertiary },
+                typography.captionMedium,
+                { color: active ? palette.ink : palette.inkTertiary },
               ]}
               numberOfLines={1}
             >
@@ -373,46 +393,54 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.borderStrong,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     minHeight: 48,
-    color: palette.textPrimary,
+    color: palette.ink,
     ...typography.body,
   },
-  inputFocused: { borderColor: palette.emberGlow, backgroundColor: palette.surfaceRaised },
-  inputError: { borderColor: palette.negative },
+  inputFocused: { borderColor: palette.ink },
+  inputError: { borderColor: palette.ink, borderWidth: 1.5 },
   amountWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: palette.surfaceRaised,
+    backgroundColor: palette.surfaceSubtle,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.border,
     paddingHorizontal: spacing.lg,
-    minHeight: 76,
+    minHeight: 78,
   },
-  amountSymbol: { ...typography.title, color: palette.textTertiary, marginRight: spacing.xs },
-  amountInput: { flex: 1, ...typography.display, fontSize: 36, lineHeight: 42, color: palette.textPrimary, paddingVertical: spacing.sm },
+  amountSymbol: { ...typography.figure, color: palette.inkQuaternary, marginRight: spacing.xs },
+  amountInput: {
+    flex: 1,
+    fontFamily: fonts.bold,
+    fontSize: 34,
+    lineHeight: 40,
+    letterSpacing: -1,
+    color: palette.ink,
+    paddingVertical: spacing.sm,
+  },
   optionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
     backgroundColor: palette.surface,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.borderStrong,
   },
-  optionDot: { width: 7, height: 7, borderRadius: 4, marginRight: 6 },
+  optionActive: { backgroundColor: palette.ink, borderColor: palette.ink },
   dateRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: palette.surface,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.borderStrong,
     overflow: 'hidden',
   },
   dateStep: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
@@ -420,12 +448,10 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: palette.surface,
+    backgroundColor: palette.surfaceSunken,
     borderRadius: radius.pill,
     padding: 3,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
   },
-  segment: { flex: 1, paddingVertical: spacing.xs, alignItems: 'center', borderRadius: radius.pill },
-  segmentActive: { backgroundColor: palette.surfaceHigh },
+  segment: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: radius.pill },
+  segmentActive: { backgroundColor: palette.surface },
 });

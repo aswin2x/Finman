@@ -332,10 +332,10 @@ export function LoanPaymentSheet({
 
       {loan && amount > 0 ? (
         <View style={{ paddingVertical: spacing.xs }}>
-          <Text style={[typography.caption, { color: palette.textTertiary }]}>
+          <Text style={[typography.caption, { color: palette.inkTertiary }]}>
             Outstanding after this payment
           </Text>
-          <Text style={[typography.subheading, { color: palette.textPrimary, marginTop: 2 }]}>
+          <Text style={[typography.subheading, { color: palette.ink, marginTop: 2 }]}>
             {formatCurrency(projected)}
           </Text>
         </View>

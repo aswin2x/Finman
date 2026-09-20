@@ -5,13 +5,13 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Gradient } from '../src/components/Gradient';
 import { ImportExportSheet } from '../src/components/ImportExportSheet';
 import { RecurringSheet } from '../src/components/RecurringSheet';
 import {
   Button,
   Card,
   Divider,
+  IconButton,
   Pill,
   PressableScale,
   SectionHeading,
@@ -25,7 +25,7 @@ import { useReducedMotion } from '../src/lib/motion';
 import { useCategories, useDeleteRecurring, useHousehold, useRecurring } from '../src/lib/queries';
 import { useToast } from '../src/lib/toast';
 import type { RecurringRule } from '../src/lib/types';
-import { gradients, motion, palette, radius, spacing, typography } from '../src/theme';
+import { motion, palette, radius, spacing, typography } from '../src/theme';
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -67,7 +67,6 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
 
       <ScrollView
         contentContainerStyle={[
@@ -77,27 +76,23 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.navBar}>
-          <PressableScale onPress={() => router.back()} accessibilityLabel="Go back">
-            <View style={styles.backButton}>
-              <Text style={[typography.body, { color: palette.textPrimary }]}>Back</Text>
-            </View>
-          </PressableScale>
+          <IconButton name="back" accessibilityLabel="Go back" onPress={() => router.back()} />
         </View>
 
         {/* Profile */}
         <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base)}>
           <Card raised>
             <View style={styles.profileRow}>
-              <View style={[styles.avatar, { borderColor: user?.avatar_color ?? palette.ember }]}>
-                <Text style={[typography.heading, { color: palette.textPrimary }]}>
+              <View style={[styles.avatar, { borderColor: user?.avatar_color ?? palette.ink }]}>
+                <Text style={[typography.heading, { color: palette.ink }]}>
                   {initials(user?.display_name ?? '')}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.heading, { color: palette.textPrimary }]}>
+                <Text style={[typography.heading, { color: palette.ink }]}>
                   {user?.display_name}
                 </Text>
-                <Text style={[typography.caption, { color: palette.textTertiary, marginTop: 2 }]}>
+                <Text style={[typography.caption, { color: palette.inkTertiary, marginTop: 2 }]}>
                   Signed in as {user?.username}
                 </Text>
               </View>
@@ -115,10 +110,10 @@ export default function SettingsScreen() {
                 style={[styles.memberRow, index < household.length - 1 && styles.rowBorder]}
               >
                 <View style={[styles.memberDot, { backgroundColor: member.avatar_color }]} />
-                <Text style={[typography.body, { color: palette.textPrimary, flex: 1 }]}>
+                <Text style={[typography.body, { color: palette.ink, flex: 1 }]}>
                   {member.display_name}
                 </Text>
-                {member.id === user?.id ? <Pill label="You" color={palette.ember} /> : null}
+                {member.id === user?.id ? <Pill label="You" /> : null}
               </View>
             ))}
           </Card>
@@ -138,7 +133,7 @@ export default function SettingsScreen() {
           <Card padded={false}>
             {recurring.length === 0 ? (
               <View style={{ padding: spacing.lg }}>
-                <Text style={[typography.caption, { color: palette.textTertiary }]}>
+                <Text style={[typography.caption, { color: palette.inkTertiary }]}>
                   None yet. Adding your salary and fixed costs improves the forecast.
                 </Text>
               </View>
@@ -157,20 +152,20 @@ export default function SettingsScreen() {
                   <View style={[styles.ruleRow, index < recurring.length - 1 && styles.rowBorder]}>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                        <Text style={[typography.body, { color: palette.textPrimary }]} numberOfLines={1}>
+                        <Text style={[typography.body, { color: palette.ink }]} numberOfLines={1}>
                           {rule.title}
                         </Text>
-                        {!rule.is_active ? <Pill label="Paused" color={palette.neutral} /> : null}
-                        {rule.auto_post ? <Pill label="Auto" color={palette.info} /> : null}
+                        {!rule.is_active ? <Pill label="Paused" /> : null}
+                        {rule.auto_post ? <Pill label="Auto" /> : null}
                       </View>
-                      <Text style={[typography.micro, { color: palette.textTertiary, marginTop: 2 }]}>
+                      <Text style={[typography.label, { color: palette.inkTertiary, marginTop: 2 }]}>
                         {titleCase(rule.frequency)} · next {formatDate(rule.next_run_on)}
                       </Text>
                     </View>
                     <Text
                       style={[
-                        typography.bodyStrong,
-                        { color: rule.type === 'income' ? palette.positive : palette.textPrimary },
+                        typography.bodyMedium,
+                        { color: rule.type === 'income' ? palette.ink : palette.ink },
                       ]}
                     >
                       {rule.type === 'income' ? '+' : ''}
@@ -191,26 +186,26 @@ export default function SettingsScreen() {
               <Skeleton height={60} />
             ) : (
               <>
-                <Text style={[typography.micro, { color: palette.textTertiary }]}>EXPENSE</Text>
+                <Text style={[typography.label, { color: palette.inkTertiary }]}>EXPENSE</Text>
                 <View style={styles.categoryWrap}>
                   {expenseCategories.map((category) => (
                     <View key={category.id} style={styles.categoryChip}>
                       <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
-                      <Text style={[typography.caption, { color: palette.textSecondary }]}>{category.name}</Text>
+                      <Text style={[typography.caption, { color: palette.inkSecondary }]}>{category.name}</Text>
                     </View>
                   ))}
                 </View>
                 <Divider style={{ marginVertical: spacing.md }} />
-                <Text style={[typography.micro, { color: palette.textTertiary }]}>INCOME</Text>
+                <Text style={[typography.label, { color: palette.inkTertiary }]}>INCOME</Text>
                 <View style={styles.categoryWrap}>
                   {incomeCategories.map((category) => (
                     <View key={category.id} style={styles.categoryChip}>
                       <View style={[styles.categoryDot, { backgroundColor: category.color }]} />
-                      <Text style={[typography.caption, { color: palette.textSecondary }]}>{category.name}</Text>
+                      <Text style={[typography.caption, { color: palette.inkSecondary }]}>{category.name}</Text>
                     </View>
                   ))}
                 </View>
-                <Text style={[typography.micro, { color: palette.textTertiary, marginTop: spacing.md }]}>
+                <Text style={[typography.label, { color: palette.inkTertiary, marginTop: spacing.md }]}>
                   New categories are created automatically when you import a file with unfamiliar names.
                 </Text>
               </>
@@ -227,7 +222,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <Text style={[typography.micro, { color: palette.textTertiary, textAlign: 'center' }]}>
+        <Text style={[typography.label, { color: palette.inkTertiary, textAlign: 'center' }]}>
           Finman 1.0.0 · connected to {BASE_URL}
         </Text>
       </ScrollView>
@@ -262,31 +257,23 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
-  content: { paddingHorizontal: spacing.lg, gap: spacing.lg },
+  root: { flex: 1, backgroundColor: palette.page },
+  content: { paddingHorizontal: spacing.lg, gap: spacing.xl },
   navBar: { flexDirection: 'row' },
-  backButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: palette.surface,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
-  },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
     borderWidth: 1.5,
-    backgroundColor: palette.surfaceHigh,
+    backgroundColor: palette.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm },
   memberDot: { width: 10, height: 10, borderRadius: 5 },
   ruleRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.border },
   categoryWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
   categoryChip: {
     flexDirection: 'row',
@@ -295,7 +282,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.pill,
-    backgroundColor: palette.surfaceHigh,
+    backgroundColor: palette.surfaceSunken,
   },
   categoryDot: { width: 7, height: 7, borderRadius: 4 },
 });

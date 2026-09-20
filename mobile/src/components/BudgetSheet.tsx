@@ -150,8 +150,7 @@ export function BudgetSheet({
         options={categories.map((category) => ({
           value: category.id,
           label: category.name,
-          color: category.color,
-        }))}
+                  }))}
         scroll
         allowClear
         hint="Leave empty for an overall budget covering all spending."

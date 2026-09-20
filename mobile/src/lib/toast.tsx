@@ -9,6 +9,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Icon } from '../components/Icon';
 import { haptics } from './motion';
 import { palette, radius, shadow, spacing, typography } from '../theme';
 
@@ -58,8 +59,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(() => ({ show }), [show]);
 
-  const toneColor =
-    toast?.tone === 'error' ? palette.negative : toast?.tone === 'info' ? palette.info : palette.positive;
+  // One surface for every tone; the message carries the meaning.
+  const toneIcon = toast?.tone === 'error' ? 'alert' : toast?.tone === 'info' ? 'info' : 'check';
 
   return (
     <ToastContext.Provider value={value}>
@@ -73,8 +74,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           style={[styles.wrap, { bottom: insets.bottom + 92 }]}
         >
           <View style={styles.toast} accessibilityLiveRegion="polite" accessibilityRole="alert">
-            <View style={[styles.dot, { backgroundColor: toneColor }]} />
-            <Text style={[typography.caption, { color: palette.textPrimary, flex: 1 }]} numberOfLines={2}>
+            <Icon name={toneIcon} size={15} color={palette.inkInverse} />
+            <Text style={[typography.caption, { color: palette.inkInverse, flex: 1 }]} numberOfLines={2}>
               {toast.message}
             </Text>
             {toast.actionLabel ? (
@@ -87,7 +88,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   dismiss();
                 }}
               >
-                <Text style={[typography.caption, { color: palette.ember }]}>{toast.actionLabel}</Text>
+                <Text style={[typography.captionMedium, { color: palette.inkInverse, textDecorationLine: 'underline' }]}>
+                  {toast.actionLabel}
+                </Text>
               </Pressable>
             ) : null}
           </View>
@@ -109,14 +112,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    backgroundColor: palette.surfaceHigh,
+    backgroundColor: palette.surfaceInverse,
     borderRadius: radius.pill,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
     width: '100%',
-    ...shadow.card,
+    ...shadow.raised,
   },
-  dot: { width: 8, height: 8, borderRadius: 4 },
 });

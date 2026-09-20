@@ -1,11 +1,19 @@
+import {
+  GoogleSansFlex_400Regular,
+  GoogleSansFlex_500Medium,
+  GoogleSansFlex_600SemiBold,
+  GoogleSansFlex_700Bold,
+  useFonts,
+} from '@expo-google-fonts/google-sans-flex';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { QueryClient, focusManager } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { AppState, type AppStateStatus, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,9 +23,11 @@ import { AuthProvider } from '../src/lib/auth';
 import { ToastProvider } from '../src/lib/toast';
 import { palette } from '../src/theme';
 
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
 /**
  * Cached data is kept for a week so the app opens with the last known figures
- * when offline. Anything stale is refetched as soon as a connection returns.
+ * when offline. Anything stale refetches as soon as a connection returns.
  */
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,12 +59,27 @@ focusManager.setEventListener((handleFocus) => {
 });
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    GoogleSansFlex_400Regular,
+    GoogleSansFlex_500Medium,
+    GoogleSansFlex_600SemiBold,
+    GoogleSansFlex_700Bold,
+  });
+
   useEffect(() => {
-    SystemUI.setBackgroundColorAsync(palette.void).catch(() => undefined);
+    SystemUI.setBackgroundColorAsync(palette.page).catch(() => undefined);
   }, []);
 
+  // The splash stays up until the type is ready, so no frame renders in a
+  // fallback face. A font failure still lets the app through.
+  const onReady = useCallback(() => {
+    if (fontsLoaded || fontError) SplashScreen.hideAsync().catch(() => undefined);
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) return null;
+
   return (
-    <GestureHandlerRootView style={styles.root}>
+    <GestureHandlerRootView style={styles.root} onLayout={onReady}>
       <SafeAreaProvider>
         <PersistQueryClientProvider
           client={queryClient}
@@ -63,13 +88,13 @@ export default function RootLayout() {
           <AuthProvider>
             <ToastProvider>
               <View style={styles.root}>
-                <StatusBar style="light" />
+                <StatusBar style="dark" />
                 <Stack
                   screenOptions={{
                     headerShown: false,
-                    contentStyle: { backgroundColor: palette.void },
+                    contentStyle: { backgroundColor: palette.page },
                     animation: 'slide_from_right',
-                    animationDuration: 260,
+                    animationDuration: 220,
                   }}
                 >
                   <Stack.Screen name="index" options={{ animation: 'fade' }} />
@@ -77,7 +102,7 @@ export default function RootLayout() {
                   <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
                   <Stack.Screen
                     name="transaction/[id]"
-                    options={{ presentation: 'card', animation: 'slide_from_bottom' }}
+                    options={{ animation: 'slide_from_bottom' }}
                   />
                   <Stack.Screen name="loan/[id]" />
                   <Stack.Screen name="settlement/[id]" />
@@ -92,5 +117,5 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
+  root: { flex: 1, backgroundColor: palette.page },
 });

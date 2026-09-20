@@ -1,34 +1,24 @@
 /**
  * Welcome and sign-in.
  *
- * A slow ember glow drifts behind the content. It is the only continuous
- * animation in the app, it runs on one screen, and it stops entirely when
- * reduced motion is on.
+ * A quiet first screen: the product statement, two fields, one action. No
+ * ornament, because the only thing to do here is get past it.
  */
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Redirect, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useForm } from 'react-hook-form';
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeInDown,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { z } from 'zod';
 
 import { TextField } from '../src/components/fields';
-import { Gradient, diagonal } from '../src/components/Gradient';
-import { Button } from '../src/components/primitives';
+import { Button, Notice } from '../src/components/primitives';
 import { ApiError } from '../src/lib/api';
 import { useAuth } from '../src/lib/auth';
 import { useReducedMotion } from '../src/lib/motion';
-import { gradients, motion, palette, radius, spacing, typography } from '../src/theme';
+import { motion, palette, radius, spacing, typography } from '../src/theme';
 
 const schema = z.object({
   username: z.string().trim().min(1, 'Enter your username'),
@@ -44,22 +34,6 @@ export default function LoginScreen() {
   const reduced = useReducedMotion();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const glow = useSharedValue(0);
-
-  useEffect(() => {
-    if (reduced) return;
-    glow.value = withRepeat(
-      withTiming(1, { duration: 7000, easing: Easing.inOut(Easing.quad) }),
-      -1,
-      true,
-    );
-  }, [glow, reduced]);
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: 0.35 + glow.value * 0.35,
-    transform: [{ scale: 1 + glow.value * 0.12 }, { translateY: glow.value * -18 }],
-  }));
 
   const { control, handleSubmit } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -89,14 +63,6 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.root}>
-      <Gradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
-      <Animated.View style={[styles.glow, glowStyle]} pointerEvents="none">
-        <Gradient
-          colors={['rgba(255,138,91,0.5)', 'rgba(232,69,47,0.05)', 'transparent']}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
-
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.root}>
         <ScrollView
           contentContainerStyle={[
@@ -108,22 +74,18 @@ export default function LoginScreen() {
         >
           <Animated.View entering={reduced ? undefined : FadeIn.duration(motion.slow)}>
             <View style={styles.mark}>
-              <Gradient colors={gradients.ember} {...diagonal} style={styles.markInner}>
-                <Text style={styles.markText}>F</Text>
-              </Gradient>
+              <Text style={styles.markText}>F</Text>
             </View>
           </Animated.View>
 
-          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.slow).delay(120)}>
-            <Text style={[typography.display, styles.headline]}>Your finances.</Text>
-            <Text style={[typography.display, styles.headlineAccent]}>Simplified.</Text>
-            <Text style={[typography.body, styles.tagline]}>
-              Track spending. Manage commitments. Plan ahead.
-            </Text>
+          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.slow).delay(80)}>
+            <Text style={styles.headline}>Your finances,</Text>
+            <Text style={styles.headline}>simplified.</Text>
+            <Text style={styles.tagline}>Track spending. Manage commitments. Plan ahead.</Text>
           </Animated.View>
 
           <Animated.View
-            entering={reduced ? undefined : FadeInDown.duration(motion.slow).delay(220)}
+            entering={reduced ? undefined : FadeInDown.duration(motion.slow).delay(160)}
             style={styles.form}
           >
             <TextField
@@ -148,19 +110,17 @@ export default function LoginScreen() {
               onSubmitEditing={onSubmit}
             />
 
-            {error ? (
-              <View style={styles.error} accessibilityLiveRegion="polite">
-                <Text style={[typography.caption, { color: palette.negative }]}>{error}</Text>
-              </View>
-            ) : null}
+            {error ? <Notice icon="alert">{error}</Notice> : null}
 
             <Button label="Log in" onPress={onSubmit} loading={submitting} full style={{ marginTop: spacing.xs }} />
           </Animated.View>
 
-          <Animated.View entering={reduced ? undefined : FadeIn.duration(motion.slow).delay(400)}>
+          <View style={{ flex: 1 }} />
+
+          <Animated.View entering={reduced ? undefined : FadeIn.duration(motion.slow).delay(320)}>
             <Text style={styles.footnote}>
-              A private household ledger for Aswin and Salini. Shared entries are visible to both of you;
-              personal entries stay with whoever recorded them.
+              A private ledger for two. Shared entries appear for both of you; personal entries stay with
+              whoever recorded them.
             </Text>
           </Animated.View>
         </ScrollView>
@@ -170,30 +130,19 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
-  glow: {
-    position: 'absolute',
-    top: -140,
-    right: -120,
-    width: 420,
-    height: 420,
-    borderRadius: 210,
-    overflow: 'hidden',
+  root: { flex: 1, backgroundColor: palette.page },
+  content: { flexGrow: 1, paddingHorizontal: spacing.xl, gap: spacing.xl },
+  mark: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.lg,
+    backgroundColor: palette.surfaceInverse,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  content: { flexGrow: 1, paddingHorizontal: spacing.xl, justifyContent: 'center', gap: spacing.xl },
-  mark: { width: 60, height: 60, borderRadius: radius.lg, overflow: 'hidden' },
-  markInner: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  markText: { ...typography.title, color: palette.white, fontWeight: '800' },
-  headline: { color: palette.textPrimary },
-  headlineAccent: { color: palette.ember },
-  tagline: { color: palette.textSecondary, marginTop: spacing.md, maxWidth: 300 },
+  markText: { ...typography.heading, color: palette.inkInverse },
+  headline: { ...typography.display, fontSize: 36, lineHeight: 42, color: palette.ink },
+  tagline: { ...typography.body, color: palette.inkTertiary, marginTop: spacing.md, maxWidth: 300 },
   form: { gap: spacing.md },
-  error: {
-    backgroundColor: palette.negativeSoft,
-    borderRadius: radius.sm,
-    padding: spacing.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,90,90,0.3)',
-  },
-  footnote: { ...typography.caption, color: palette.textTertiary, lineHeight: 19 },
+  footnote: { ...typography.caption, color: palette.inkQuaternary, lineHeight: 19 },
 });

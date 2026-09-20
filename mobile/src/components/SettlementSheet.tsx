@@ -121,8 +121,8 @@ export function SettlementSheet({
         name="direction"
         label="Direction"
         options={[
-          { value: 'we_owe', label: 'We owe them', color: palette.negative },
-          { value: 'owed_to_us', label: 'They owe us', color: palette.positive },
+          { value: 'we_owe', label: 'We owe them' },
+          { value: 'owed_to_us', label: 'They owe us' },
         ]}
       />
 
@@ -251,13 +251,13 @@ export function SettlementPaymentSheet({
       <AmountField control={control} name="amount" label="Amount" autoFocus />
 
       {tooMuch ? (
-        <Text style={[typography.caption, { color: palette.negative }]}>
+        <Text style={[typography.caption, { color: palette.ink }]}>
           That is more than the {formatCurrency(settlement?.remaining_amount ?? 0)} outstanding.
         </Text>
       ) : amount > 0 && settlement ? (
         <View>
-          <Text style={[typography.caption, { color: palette.textTertiary }]}>Remaining after this</Text>
-          <Text style={[typography.subheading, { color: palette.textPrimary, marginTop: 2 }]}>
+          <Text style={[typography.caption, { color: palette.inkTertiary }]}>Remaining after this</Text>
+          <Text style={[typography.subheading, { color: palette.ink, marginTop: 2 }]}>
             {formatCurrency(remaining)}
           </Text>
         </View>

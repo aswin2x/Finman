@@ -94,14 +94,12 @@ export function TransactionSheet({ visible, onClose, type, editing, defaultUserI
   const categoryOptions = categories.map((category) => ({
     value: category.id,
     label: category.name,
-    color: category.color,
-  }));
+      }));
 
   const memberOptions = household.map((member) => ({
     value: member.id,
     label: member.display_name,
-    color: member.avatar_color,
-  }));
+      }));
 
   const onSubmit = handleSubmit(async (values) => {
     const payload: TransactionInput = {
@@ -198,7 +196,7 @@ export function TransactionSheet({ visible, onClose, type, editing, defaultUserI
 
       {formState.isSubmitted && !formState.isValid ? (
         <View style={{ paddingTop: spacing.xs }}>
-          <Text style={[typography.caption, { color: palette.negative }]}>
+          <Text style={[typography.caption, { color: palette.ink }]}>
             Please correct the highlighted fields.
           </Text>
         </View>

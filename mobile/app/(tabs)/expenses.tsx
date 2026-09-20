@@ -1,9 +1,9 @@
 /**
  * Expenses.
  *
- * A searchable, filterable ledger grouped by day. Filters live in a sheet so
- * the list itself stays uncluttered, and the active count is shown on the
- * button so a filtered view is never mistaken for the full picture.
+ * A searchable ledger grouped by day. Filters live in a sheet so the list
+ * stays quiet, and the count sits on the filter control so a narrowed view is
+ * never mistaken for the whole picture.
  */
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -12,18 +12,19 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedNumber } from '../../src/components/AnimatedNumber';
-import { Gradient } from '../../src/components/Gradient';
 import { Segmented } from '../../src/components/fields';
+import { Icon } from '../../src/components/Icon';
 import { ImportExportSheet } from '../../src/components/ImportExportSheet';
 import { CategoryBreakdown } from '../../src/components/ProgressBar';
 import {
   Button,
   Card,
   Chip,
+  Divider,
   EmptyState,
   ErrorState,
-  PressableScale,
   Pill,
+  PressableScale,
   SectionHeading,
   Skeleton,
 } from '../../src/components/primitives';
@@ -40,7 +41,7 @@ import {
 } from '../../src/lib/queries';
 import { useAuth } from '../../src/lib/auth';
 import type { Transaction } from '../../src/lib/types';
-import { gradients, motion, palette, radius, spacing, typography } from '../../src/theme';
+import { motion, palette, radius, spacing, typography } from '../../src/theme';
 
 const PAYMENT_METHODS = ['upi', 'cash', 'card', 'bank', 'wallet', 'other'];
 
@@ -77,7 +78,6 @@ export default function ExpensesScreen() {
   );
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useTransactions(filters);
-
   const activeFilterCount = categoryIds.length + userIds.length + methods.length;
 
   const grouped = useMemo(() => {
@@ -107,50 +107,53 @@ export default function ExpensesScreen() {
 
   const periodTotal = type === 'expense' ? (summary?.expenses ?? 0) : (summary?.income ?? 0);
   const listTotal = (data?.items ?? []).reduce((sum, row) => sum + row.amount, 0);
+  const count = type === 'expense' ? (summary?.expense_count ?? 0) : (summary?.income_count ?? 0);
 
   return (
     <View style={styles.root}>
-      <Gradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
-
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={palette.ember} />}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={palette.inkTertiary} />
+        }
       >
         <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base)}>
-          <Text style={[typography.title, { color: palette.textPrimary }]}>
+          <Text style={[typography.title, { color: palette.ink }]}>
             {type === 'expense' ? 'Expenses' : 'Income'}
           </Text>
-          <Text style={[typography.caption, { color: palette.textTertiary, marginTop: 2 }]}>
+          <Text style={[typography.caption, { color: palette.inkTertiary, marginTop: 2 }]}>
             {summary?.month ? formatPeriod(summary.month) : 'This month'}
           </Text>
         </Animated.View>
 
-        {/* Total for the month */}
-        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(60)}>
-          <Card raised>
-            <Text style={[typography.micro, { color: palette.textTertiary }]}>
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(50)}>
+          <Card>
+            <Text style={[typography.label, styles.label]}>
               {type === 'expense' ? 'TOTAL SPENT THIS MONTH' : 'TOTAL RECEIVED THIS MONTH'}
             </Text>
             <AnimatedNumber
               value={periodTotal}
-              style={[typography.balance, { color: palette.textPrimary, marginTop: spacing.xs }]}
+              style={[typography.display, { color: palette.ink, marginTop: spacing.xs }]}
             />
             <View style={styles.totalMeta}>
-              <Text style={[typography.caption, { color: palette.textTertiary }]}>
-                {type === 'expense' ? summary?.expense_count ?? 0 : summary?.income_count ?? 0} entries
+              <Text style={[typography.caption, { color: palette.inkTertiary }]}>
+                {count} {count === 1 ? 'entry' : 'entries'}
               </Text>
               {activeFilterCount > 0 ? (
-                <Text style={[typography.caption, { color: palette.ember }]}>
-                  Filtered view: {formatCurrency(listTotal)}
+                <Text style={[typography.captionMedium, { color: palette.ink }]}>
+                  Filtered: {formatCurrency(listTotal)}
                 </Text>
               ) : null}
             </View>
           </Card>
         </Animated.View>
 
-        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(90)}>
+        <Animated.View
+          entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(80)}
+          style={{ gap: spacing.sm }}
+        >
           <Segmented
             options={[
               { value: 'expense', label: 'Expenses' },
@@ -162,36 +165,33 @@ export default function ExpensesScreen() {
               setCategoryIds([]);
             }}
           />
-        </Animated.View>
 
-        {/* Search and filters */}
-        <Animated.View
-          entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(120)}
-          style={styles.searchRow}
-        >
-          <View style={styles.searchBox}>
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder={`Search ${type === 'expense' ? 'expenses' : 'income'}`}
-              placeholderTextColor={palette.textTertiary}
-              style={styles.searchInput}
-              autoCorrect={false}
-              returnKeyType="search"
-              accessibilityLabel="Search"
-              clearButtonMode="while-editing"
+          <View style={styles.searchRow}>
+            <View style={styles.searchBox}>
+              <Icon name="search" size={16} color={palette.inkQuaternary} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder={`Search ${type === 'expense' ? 'expenses' : 'income'}`}
+                placeholderTextColor={palette.inkQuaternary}
+                style={styles.searchInput}
+                autoCorrect={false}
+                returnKeyType="search"
+                accessibilityLabel="Search"
+                clearButtonMode="while-editing"
+              />
+            </View>
+            <Chip
+              label={activeFilterCount > 0 ? `${activeFilterCount}` : 'Filter'}
+              icon="filter"
+              active={activeFilterCount > 0}
+              onPress={() => setFiltersOpen(true)}
             />
           </View>
-          <Chip
-            label={activeFilterCount > 0 ? `Filters (${activeFilterCount})` : 'Filters'}
-            active={activeFilterCount > 0}
-            onPress={() => setFiltersOpen(true)}
-          />
         </Animated.View>
 
-        {/* Category breakdown */}
         {summary && summary.by_category.length > 0 && type === 'expense' ? (
-          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(150)}>
+          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(120)}>
             <SectionHeading title="Where it went" />
             <Card>
               <CategoryBreakdown items={summary.by_category} max={4} />
@@ -199,29 +199,25 @@ export default function ExpensesScreen() {
           </Animated.View>
         ) : null}
 
-        {/* Ledger */}
         <View>
-          <SectionHeading
-            title="All entries"
-            action="Import / export"
-            onAction={() => setPortingOpen(true)}
-          />
+          <SectionHeading title="All entries" action="Import / export" onAction={() => setPortingOpen(true)} />
 
           {isLoading && !data ? (
             <View style={{ gap: spacing.sm }}>
-              <Skeleton height={64} />
-              <Skeleton height={64} />
-              <Skeleton height={64} />
+              <Skeleton height={70} />
+              <Skeleton height={70} />
+              <Skeleton height={70} />
             </View>
           ) : isError && !data ? (
             <ErrorState message={error instanceof Error ? error.message : 'Unknown error'} onRetry={refetch} />
           ) : grouped.length === 0 ? (
             <EmptyState
+              icon="search"
               title={search || activeFilterCount ? 'Nothing matches' : 'No entries yet'}
               message={
                 search || activeFilterCount
-                  ? 'Try a different search or clear the filters.'
-                  : `Record your first ${type} and it will appear here.`
+                  ? 'Try a different search, or clear the filters.'
+                  : `Record your first ${type} and it appears here.`
               }
               action={search || activeFilterCount ? 'Clear filters' : `Add ${type}`}
               onAction={() => {
@@ -238,13 +234,15 @@ export default function ExpensesScreen() {
               {grouped.map((group, groupIndex) => (
                 <Animated.View
                   key={group.date}
-                  entering={reduced ? undefined : FadeIn.duration(motion.fast).delay(Math.min(groupIndex * 40, 200))}
+                  entering={
+                    reduced ? undefined : FadeIn.duration(motion.fast).delay(Math.min(groupIndex * 30, 180))
+                  }
                 >
                   <View style={styles.groupHeader}>
-                    <Text style={[typography.micro, { color: palette.textTertiary }]}>
+                    <Text style={[typography.label, styles.label]}>
                       {relativeDayLabel(group.date).toUpperCase()}
                     </Text>
-                    <Text style={[typography.micro, { color: palette.textSecondary }]}>
+                    <Text style={[typography.mono, { color: palette.inkSecondary }]}>
                       {formatCurrency(group.total)}
                     </Text>
                   </View>
@@ -264,13 +262,13 @@ export default function ExpensesScreen() {
           )}
         </View>
 
-        <View style={{ height: insets.bottom + 96 }} />
+        <View style={{ height: insets.bottom + 92 }} />
       </ScrollView>
 
-      {/* Add button */}
-      <View style={[styles.fabWrap, { bottom: insets.bottom + spacing.md }]} pointerEvents="box-none">
+      <View style={[styles.fabWrap, { bottom: insets.bottom + spacing.sm }]} pointerEvents="box-none">
         <Button
-          label={type === 'expense' ? '+  Add Expense' : '+  Add Income'}
+          label={type === 'expense' ? 'Add Expense' : 'Add Income'}
+          icon="plus"
           onPress={() => setEntrySheet(type)}
           full
         />
@@ -285,7 +283,6 @@ export default function ExpensesScreen() {
 
       <ImportExportSheet visible={portingOpen} onClose={() => setPortingOpen(false)} />
 
-      {/* Filters */}
       <Sheet
         visible={filtersOpen}
         onClose={() => setFiltersOpen(false)}
@@ -295,15 +292,7 @@ export default function ExpensesScreen() {
         footer={
           <>
             <Button label="Show results" onPress={() => setFiltersOpen(false)} full />
-            <Button
-              label="Clear all"
-              variant="ghost"
-              size="sm"
-              onPress={() => {
-                clearFilters();
-              }}
-              full
-            />
+            <Button label="Clear all" variant="ghost" size="sm" onPress={clearFilters} full />
           </>
         }
       >
@@ -312,10 +301,8 @@ export default function ExpensesScreen() {
             <Chip
               key={category.id}
               label={category.name}
-              color={category.color}
               active={categoryIds.includes(category.id)}
               onPress={() => toggle(categoryIds, category.id, setCategoryIds)}
-              compact
             />
           ))}
         </FilterGroup>
@@ -325,10 +312,8 @@ export default function ExpensesScreen() {
             <Chip
               key={member.id}
               label={member.display_name}
-              color={member.avatar_color}
               active={userIds.includes(member.id)}
               onPress={() => toggle(userIds, member.id, setUserIds)}
-              compact
             />
           ))}
         </FilterGroup>
@@ -340,7 +325,6 @@ export default function ExpensesScreen() {
               label={titleCase(method)}
               active={methods.includes(method)}
               onPress={() => toggle(methods, method, setMethods)}
-              compact
             />
           ))}
         </FilterGroup>
@@ -351,8 +335,8 @@ export default function ExpensesScreen() {
 
 function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View style={{ gap: spacing.xs }}>
-      <Text style={[typography.micro, { color: palette.textTertiary }]}>{title.toUpperCase()}</Text>
+    <View style={{ gap: spacing.sm }}>
+      <Text style={[typography.label, styles.label]}>{title.toUpperCase()}</Text>
       <View style={styles.chipWrap}>{children}</View>
     </View>
   );
@@ -367,7 +351,6 @@ export function TransactionRow({
   last: boolean;
   onPress: () => void;
 }) {
-  const tint = txn.category?.color ?? palette.neutral;
   const linked = Boolean(txn.loan_payment_id || txn.settlement_payment_id);
 
   return (
@@ -376,58 +359,53 @@ export function TransactionRow({
       accessibilityLabel={`${txn.title}, ${formatCurrency(txn.amount)}, ${txn.category?.name ?? 'uncategorised'}`}
       accessibilityHint="Opens the entry for editing"
     >
-      <View style={[styles.row, !last && styles.rowBorder]}>
-        <View style={[styles.rowIcon, { backgroundColor: `${tint}1F`, borderColor: `${tint}44` }]}>
-          <View style={[styles.rowDot, { backgroundColor: tint }]} />
+      <View style={styles.row}>
+        <View style={styles.rowIcon}>
+          <Icon name={txn.type === 'income' ? 'income' : 'expense'} size={14} color={palette.inkSecondary} />
         </View>
         <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-            <Text style={[typography.body, { color: palette.textPrimary, flexShrink: 1 }]} numberOfLines={1}>
+          <View style={styles.rowTitle}>
+            <Text style={[typography.body, { color: palette.ink, flexShrink: 1 }]} numberOfLines={1}>
               {txn.title}
             </Text>
-            {txn.scope === 'personal' ? <Pill label="Personal" color={palette.neutral} /> : null}
-            {linked ? <Pill label="Linked" color={palette.info} /> : null}
+            {txn.scope === 'personal' ? <Pill label="Personal" /> : null}
+            {linked ? <Pill label="Linked" /> : null}
           </View>
-          <Text style={[typography.micro, { color: palette.textTertiary, marginTop: 3 }]} numberOfLines={1}>
+          <Text style={[typography.caption, { color: palette.inkQuaternary, marginTop: 2 }]} numberOfLines={1}>
             {txn.category?.name ?? 'Uncategorised'} · {titleCase(txn.payment_method)} · {txn.user.display_name}
           </Text>
         </View>
-        <Text
-          style={[
-            typography.bodyStrong,
-            { color: txn.type === 'income' ? palette.positive : palette.textPrimary },
-          ]}
-        >
-          {txn.type === 'income' ? '+' : ''}
+        <Text style={[typography.figureSmall, { color: palette.ink }]}>
+          {txn.type === 'income' ? '+' : '−'}
           {formatCurrency(txn.amount)}
         </Text>
       </View>
+      {!last ? <Divider inset={spacing.md + 32 + spacing.sm} /> : null}
     </PressableScale>
   );
 }
 
 function formatPeriod(month: string): string {
   const [year, mon] = month.split('-').map(Number);
-  const date = new Date(year, mon - 1, 1);
-  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  return new Date(year, mon - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
-  content: { paddingHorizontal: spacing.lg, gap: spacing.lg },
-  totalMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
+  root: { flex: 1, backgroundColor: palette.page },
+  content: { paddingHorizontal: spacing.lg, gap: spacing.xl },
+  label: { color: palette.inkTertiary, textTransform: 'uppercase' },
+  totalMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md },
   searchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   searchBox: {
     flex: 1,
-    backgroundColor: palette.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: palette.surfaceSunken,
     borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
     paddingHorizontal: spacing.md,
-    height: 44,
-    justifyContent: 'center',
+    height: 42,
   },
-  searchInput: { ...typography.body, color: palette.textPrimary, padding: 0 },
+  searchInput: { flex: 1, marginLeft: spacing.xs, ...typography.body, color: palette.ink, padding: 0 },
   groupHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -436,16 +414,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxs,
   },
   row: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
   rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: palette.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowDot: { width: 8, height: 8, borderRadius: 4 },
+  rowTitle: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   fabWrap: { position: 'absolute', left: spacing.lg, right: spacing.lg },
 });

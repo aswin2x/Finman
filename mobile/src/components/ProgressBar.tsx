@@ -1,25 +1,23 @@
-/** Animated progress bars and the spending-breakdown list. */
+/** Progress bars and the category breakdown, both in ordered grayscale. */
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
-import { Gradient, horizontal } from './Gradient';
 import { formatCurrency, formatPercent } from '../lib/format';
 import { useReducedMotion } from '../lib/motion';
 import type { CategoryTotal } from '../lib/types';
-import { motion, palette, radius, spacing, stateColor, typography } from '../theme';
+import { motion, palette, radius, rampAt, spacing, typography } from '../theme';
 
 interface ProgressProps {
-  /** 0 to 100 and beyond; values above 100 are clamped visually but reported honestly. */
+  /** 0 to 100 and beyond. Clamped visually, reported honestly. */
   percent: number;
-  color?: string;
-  gradient?: readonly string[];
+  fill?: string;
   height?: number;
   delay?: number;
   track?: string;
 }
 
-export function ProgressBar({ percent, color, gradient, height = 6, delay = 0, track }: ProgressProps) {
+export function ProgressBar({ percent, fill, height = 4, delay = 0, track }: ProgressProps) {
   const reduced = useReducedMotion();
   const width = useSharedValue(0);
   const clamped = Math.max(0, Math.min(100, percent));
@@ -41,65 +39,19 @@ export function ProgressBar({ percent, color, gradient, height = 6, delay = 0, t
     <View
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: Math.round(percent) }}
-      style={[styles.track, { height, backgroundColor: track ?? palette.surfaceHigh }]}
+      style={[styles.track, { height, backgroundColor: track ?? palette.surfaceSunken }]}
     >
-      <Animated.View style={[styles.fill, { height }, animated]}>
-        {gradient ? (
-          <Gradient colors={gradient} {...horizontal} style={StyleSheet.absoluteFill} />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: color ?? palette.ember }]} />
-        )}
-      </Animated.View>
+      <Animated.View
+        style={[{ height, borderRadius: radius.pill, backgroundColor: fill ?? palette.ink }, animated]}
+      />
     </View>
   );
 }
 
-/** A circular gauge used for the headline budget figure. */
-export function RingProgress({
-  percent,
-  size = 96,
-  thickness = 8,
-  state = 'on_track',
-  label,
-}: {
-  percent: number;
-  size?: number;
-  thickness?: number;
-  state?: string;
-  label?: string;
-}) {
-  const color = stateColor(state);
-  const clamped = Math.max(0, Math.min(100, percent));
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: thickness,
-          borderColor: palette.surfaceHigh,
-        }}
-      />
-      <View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: thickness,
-          borderColor: color,
-          opacity: 0.25 + (clamped / 100) * 0.75,
-        }}
-      />
-      <Text style={[typography.subheading, { color: palette.textPrimary }]}>{Math.round(percent)}%</Text>
-      {label ? <Text style={[typography.micro, { color: palette.textTertiary }]}>{label}</Text> : null}
-    </View>
-  );
-}
-
-/** The category spending breakdown used on the dashboard and expenses screen. */
+/**
+ * Category spending, ordered largest first with the darkest shade. Rank is
+ * carried by order and weight, so no hue is needed to read the breakdown.
+ */
 export function CategoryBreakdown({
   items,
   max = 6,
@@ -114,7 +66,7 @@ export function CategoryBreakdown({
 
   if (shown.length === 0) {
     return (
-      <Text style={[typography.caption, { color: palette.textTertiary }]}>
+      <Text style={[typography.caption, { color: palette.inkTertiary }]}>
         No spending recorded in this period.
       </Text>
     );
@@ -126,28 +78,35 @@ export function CategoryBreakdown({
         <View key={item.category_id ?? `uncategorised-${index}`}>
           <View style={styles.row}>
             <View style={styles.rowLeft}>
-              <View style={[styles.dot, { backgroundColor: item.color }]} />
-              <Text style={[typography.body, { color: palette.textPrimary }]} numberOfLines={1}>
+              <View style={[styles.swatch, { backgroundColor: rampAt(index) }]} />
+              <Text
+                style={[
+                  index === 0 ? typography.bodyMedium : typography.body,
+                  { color: palette.ink, flexShrink: 1 },
+                ]}
+                numberOfLines={1}
+              >
                 {item.name}
               </Text>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              {showAmounts ? (
-                <Text style={[typography.bodyStrong, { color: palette.textPrimary }]}>
-                  {formatCurrency(item.amount)}
-                </Text>
-              ) : null}
-              <Text style={[typography.micro, { color: palette.textTertiary }]}>
-                {formatPercent(item.share_pct, 1)} of spend
+            {showAmounts ? (
+              <Text style={[typography.figureSmall, { color: palette.ink }]}>
+                {formatCurrency(item.amount)}
               </Text>
-            </View>
+            ) : null}
           </View>
-          <ProgressBar
-            percent={top > 0 ? (item.amount / top) * 100 : 0}
-            color={item.color}
-            height={4}
-            delay={index * motion.stagger}
-          />
+
+          <View style={styles.barRow}>
+            <ProgressBar
+              percent={top > 0 ? (item.amount / top) * 100 : 0}
+              fill={rampAt(index)}
+              height={3}
+              delay={index * motion.stagger}
+            />
+            <Text style={[typography.caption, { color: palette.inkQuaternary, marginLeft: spacing.sm }]}>
+              {formatPercent(item.share_pct, 0)}
+            </Text>
+          </View>
         </View>
       ))}
     </View>
@@ -155,9 +114,9 @@ export function CategoryBreakdown({
 }
 
 const styles = StyleSheet.create({
-  track: { width: '100%', borderRadius: radius.pill, overflow: 'hidden' },
-  fill: { borderRadius: radius.pill, overflow: 'hidden' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
+  track: { flex: 1, borderRadius: radius.pill, overflow: 'hidden' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
   rowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: spacing.sm },
-  dot: { width: 8, height: 8, borderRadius: 4, marginRight: spacing.xs },
+  swatch: { width: 8, height: 8, borderRadius: 2, marginRight: spacing.xs },
+  barRow: { flexDirection: 'row', alignItems: 'center' },
 });

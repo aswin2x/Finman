@@ -1,15 +1,15 @@
 /**
- * Cash-flow line chart.
+ * Cash-flow chart.
  *
- * Draws the cumulative net position as a smoothed path over a soft gradient
- * fill. Touching the chart scrubs a marker along the line and reports the
- * value under the finger, so figures can be read exactly rather than guessed.
+ * A single thin ink line over a faint fill. Touching it scrubs a marker and
+ * reports the exact value under the finger, so figures are read rather than
+ * estimated from the shape.
  */
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { FadeIn, useSharedValue, withTiming } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Line, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { formatCompact, formatCurrency, formatDateShort } from '../lib/format';
 import { useReducedMotion } from '../lib/motion';
@@ -24,7 +24,7 @@ interface Props {
   showAxis?: boolean;
 }
 
-/** Catmull-Rom to cubic Bezier, for a smooth line without overshoot. */
+/** Catmull-Rom to cubic Bezier: a smooth line that never overshoots its data. */
 function smoothPath(coords: { x: number; y: number }[]): string {
   if (coords.length === 0) return '';
   if (coords.length === 1) return `M ${coords[0].x} ${coords[0].y}`;
@@ -35,24 +35,21 @@ function smoothPath(coords: { x: number; y: number }[]): string {
     const p1 = coords[i];
     const p2 = coords[i + 1];
     const p3 = coords[Math.min(coords.length - 1, i + 2)];
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    path += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
+    path += ` C ${p1.x + (p2.x - p0.x) / 6} ${p1.y + (p2.y - p0.y) / 6}, ${
+      p2.x - (p3.x - p1.x) / 6
+    } ${p2.y - (p3.y - p1.y) / 6}, ${p2.x} ${p2.y}`;
   }
   return path;
 }
 
-export function CashFlowChart({ points, height = 168, showAxis = true }: Props) {
+export function CashFlowChart({ points, height = 150, showAxis = true }: Props) {
   const reduced = useReducedMotion();
   const [width, setWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const markerOpacity = useSharedValue(0);
 
   const chart = useMemo(() => {
     if (points.length === 0 || width === 0) return null;
-    const padding = { top: 12, bottom: showAxis ? 22 : 8, left: 0, right: 0 };
+    const padding = { top: 14, bottom: showAxis ? 20 : 6 };
     const innerHeight = height - padding.top - padding.bottom;
     const values = points.map((p) => p.cumulative_net);
     const min = Math.min(...values);
@@ -65,40 +62,37 @@ export function CashFlowChart({ points, height = 168, showAxis = true }: Props) 
     }));
 
     const line = smoothPath(coords);
-    const area = `${line} L ${coords[coords.length - 1].x} ${height - padding.bottom} L ${coords[0].x} ${height - padding.bottom} Z`;
+    const baseline = height - padding.bottom;
+    const area = `${line} L ${coords[coords.length - 1].x} ${baseline} L ${coords[0].x} ${baseline} Z`;
     const zeroY =
       min <= 0 && max >= 0 ? padding.top + innerHeight - ((0 - min) / span) * innerHeight : null;
 
-    return { coords, line, area, min, max, zeroY, padding, innerHeight };
+    return { coords, line, area, zeroY, padding, baseline };
   }, [points, width, height, showAxis]);
 
   const pan = Gesture.Pan()
     .onBegin((event) => {
       if (!chart || points.length === 0) return;
       const ratio = Math.max(0, Math.min(1, event.x / Math.max(width, 1)));
-      const index = Math.round(ratio * (points.length - 1));
-      markerOpacity.value = withTiming(1, { duration: motion.instant });
-      setActiveIndex(index);
+      setActiveIndex(Math.round(ratio * (points.length - 1)));
     })
     .onUpdate((event) => {
       if (!chart || points.length === 0) return;
       const ratio = Math.max(0, Math.min(1, event.x / Math.max(width, 1)));
       setActiveIndex(Math.round(ratio * (points.length - 1)));
     })
-    .onFinalize(() => {
-      markerOpacity.value = withTiming(0, { duration: motion.fast });
-      setActiveIndex(null);
-    })
+    .onFinalize(() => setActiveIndex(null))
     .runOnJS(true);
 
   const active = activeIndex !== null ? points[activeIndex] : null;
   const activeCoord = chart && activeIndex !== null ? chart.coords[activeIndex] : null;
+  const last = points[points.length - 1];
 
   if (points.length === 0) {
     return (
       <View style={[styles.placeholder, { height }]}>
-        <Text style={[typography.caption, { color: palette.textTertiary }]}>
-          No activity recorded for this period yet
+        <Text style={[typography.caption, { color: palette.inkTertiary }]}>
+          No activity recorded in this period
         </Text>
       </View>
     );
@@ -108,38 +102,38 @@ export function CashFlowChart({ points, height = 168, showAxis = true }: Props) 
     <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
       <View style={styles.readout}>
         <View>
-          <Text style={[typography.micro, { color: palette.textTertiary }]}>
-            {active ? formatDateShort(active.date) : 'NET POSITION'}
+          <Text style={[typography.label, { color: palette.inkTertiary, textTransform: 'uppercase' }]}>
+            {active ? formatDateShort(active.date) : 'Net position'}
           </Text>
-          <Text style={[typography.subheading, { color: palette.textPrimary, marginTop: 2 }]}>
-            {formatCurrency(active ? active.cumulative_net : points[points.length - 1].cumulative_net)}
+          <Text style={[typography.figureSmall, { color: palette.ink, marginTop: 4 }]}>
+            {formatCurrency(active ? active.cumulative_net : last.cumulative_net)}
           </Text>
         </View>
         {active ? (
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={[typography.micro, { color: palette.positive }]}>
-              IN {formatCompact(active.income)}
+            <Text style={[typography.mono, { color: palette.inkSecondary }]}>
+              In {formatCompact(active.income)}
             </Text>
-            <Text style={[typography.micro, { color: palette.negative, marginTop: 2 }]}>
-              OUT {formatCompact(active.expenses)}
+            <Text style={[typography.mono, { color: palette.inkTertiary, marginTop: 2 }]}>
+              Out {formatCompact(active.expenses)}
             </Text>
           </View>
         ) : null}
       </View>
 
       <GestureDetector gesture={pan}>
-        <View style={{ height }} accessibilityRole="image" accessibilityLabel="Cash flow chart. Touch and drag to read values.">
+        <View
+          style={{ height }}
+          accessibilityRole="image"
+          accessibilityLabel="Cash flow chart. Touch and drag to read values."
+        >
           {chart && width > 0 ? (
             <Svg width={width} height={height}>
               <Defs>
-                <SvgGradient id="flowFill" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor={palette.ember} stopOpacity="0.28" />
-                  <Stop offset="1" stopColor={palette.ember} stopOpacity="0" />
-                </SvgGradient>
-                <SvgGradient id="flowLine" x1="0" y1="0" x2="1" y2="0">
-                  <Stop offset="0" stopColor={palette.emberBright} />
-                  <Stop offset="1" stopColor={palette.emberDeep} />
-                </SvgGradient>
+                <LinearGradient id="flowFill" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={palette.ink} stopOpacity="0.09" />
+                  <Stop offset="1" stopColor={palette.ink} stopOpacity="0" />
+                </LinearGradient>
               </Defs>
 
               {chart.zeroY !== null ? (
@@ -148,9 +142,9 @@ export function CashFlowChart({ points, height = 168, showAxis = true }: Props) 
                   y1={chart.zeroY}
                   x2={width}
                   y2={chart.zeroY}
-                  stroke={palette.hairline}
+                  stroke={palette.borderStrong}
                   strokeWidth={1}
-                  strokeDasharray="4 6"
+                  strokeDasharray="3 5"
                 />
               ) : null}
 
@@ -158,8 +152,8 @@ export function CashFlowChart({ points, height = 168, showAxis = true }: Props) 
               <AnimatedPath
                 entering={reduced ? undefined : FadeIn.duration(motion.slow)}
                 d={chart.line}
-                stroke="url(#flowLine)"
-                strokeWidth={2.5}
+                stroke={palette.ink}
+                strokeWidth={1.75}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 fill="none"
@@ -171,19 +165,26 @@ export function CashFlowChart({ points, height = 168, showAxis = true }: Props) 
                     x1={activeCoord.x}
                     y1={chart.padding.top}
                     x2={activeCoord.x}
-                    y2={height - chart.padding.bottom}
-                    stroke={palette.emberGlow}
+                    y2={chart.baseline}
+                    stroke={palette.borderStrong}
                     strokeWidth={1}
                   />
-                  <Circle cx={activeCoord.x} cy={activeCoord.y} r={6} fill={palette.ember} opacity={0.25} />
-                  <Circle cx={activeCoord.x} cy={activeCoord.y} r={3.5} fill={palette.white} />
+                  <Circle cx={activeCoord.x} cy={activeCoord.y} r={4.5} fill={palette.page} />
+                  <Circle
+                    cx={activeCoord.x}
+                    cy={activeCoord.y}
+                    r={4.5}
+                    stroke={palette.ink}
+                    strokeWidth={1.75}
+                    fill={palette.page}
+                  />
                 </>
               ) : (
                 <Circle
                   cx={chart.coords[chart.coords.length - 1].x - 1}
                   cy={chart.coords[chart.coords.length - 1].y}
-                  r={3.5}
-                  fill={palette.ember}
+                  r={3}
+                  fill={palette.ink}
                 />
               )}
             </Svg>
@@ -193,11 +194,11 @@ export function CashFlowChart({ points, height = 168, showAxis = true }: Props) 
 
       {showAxis ? (
         <View style={styles.axis}>
-          <Text style={[typography.micro, { color: palette.textTertiary }]}>{points[0].label}</Text>
-          <Text style={[typography.micro, { color: palette.textTertiary }]}>
+          <Text style={[typography.caption, { color: palette.inkQuaternary }]}>{points[0].label}</Text>
+          <Text style={[typography.caption, { color: palette.inkQuaternary }]}>
             {points[Math.floor(points.length / 2)]?.label}
           </Text>
-          <Text style={[typography.micro, { color: palette.textTertiary }]}>{points[points.length - 1].label}</Text>
+          <Text style={[typography.caption, { color: palette.inkQuaternary }]}>{last.label}</Text>
         </View>
       ) : null}
     </View>
@@ -205,12 +206,17 @@ export function CashFlowChart({ points, height = 168, showAxis = true }: Props) 
 }
 
 const styles = StyleSheet.create({
-  readout: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xs },
-  axis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xxs },
+  readout: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xs,
+  },
+  axis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   placeholder: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.surfaceRaised,
+    backgroundColor: palette.surfaceSubtle,
     borderRadius: radius.md,
   },
 });

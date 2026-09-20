@@ -87,9 +87,9 @@ export function Sheet({ visible, onClose, title, subtitle, children, footer, tal
           >
             <View style={styles.grabber} />
             <View style={styles.header}>
-              <Text style={[typography.heading, { color: palette.textPrimary }]}>{title}</Text>
+              <Text style={[typography.heading, { color: palette.ink }]}>{title}</Text>
               {subtitle ? (
-                <Text style={[typography.caption, { color: palette.textTertiary, marginTop: 2 }]}>{subtitle}</Text>
+                <Text style={[typography.caption, { color: palette.inkTertiary, marginTop: 2 }]}>{subtitle}</Text>
               ) : null}
             </View>
 
@@ -136,28 +136,25 @@ export function ConfirmDialog({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel} statusBarTranslucent>
       <Pressable style={styles.dialogRoot} onPress={onCancel} accessibilityRole="button" accessibilityLabel="Dismiss">
         <Pressable style={styles.dialog} onPress={(event) => event.stopPropagation()}>
-          <Text style={[typography.subheading, { color: palette.textPrimary }]}>{title}</Text>
-          <Text style={[typography.body, { color: palette.textSecondary, marginTop: spacing.xs }]}>{message}</Text>
+          <Text style={[typography.subheading, { color: palette.ink }]}>{title}</Text>
+          <Text style={[typography.body, { color: palette.inkSecondary, marginTop: spacing.xs }]}>{message}</Text>
           <View style={styles.dialogActions}>
             <Pressable
               accessibilityRole="button"
-              style={[styles.dialogButton, { backgroundColor: palette.surfaceHigh }]}
+              style={[styles.dialogButton, { backgroundColor: palette.surfaceSunken }]}
               onPress={onCancel}
               disabled={loading}
             >
-              <Text style={[typography.bodyStrong, { color: palette.textPrimary }]}>{cancelLabel}</Text>
+              <Text style={[typography.bodyMedium, { color: palette.ink }]}>{cancelLabel}</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              style={[
-                styles.dialogButton,
-                { backgroundColor: destructive ? palette.negativeSoft : palette.emberSoft },
-              ]}
+              style={[styles.dialogButton, styles.dialogButtonPrimary]}
               onPress={onConfirm}
               disabled={loading}
             >
               <Text
-                style={[typography.bodyStrong, { color: destructive ? palette.negative : palette.ember }]}
+                style={[typography.bodyMedium, { color: palette.inkInverse }]}
               >
                 {loading ? 'Working...' : confirmLabel}
               </Text>
@@ -173,11 +170,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   keyboardWrap: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: palette.base,
+    backgroundColor: palette.page,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.border,
     maxHeight: '88%',
     ...shadow.sheet,
   },
@@ -185,7 +182,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: palette.surfaceHigh,
+    backgroundColor: palette.borderStrong,
     alignSelf: 'center',
     marginTop: spacing.sm,
   },
@@ -195,7 +192,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: palette.hairline,
+    borderTopColor: palette.border,
     gap: spacing.sm,
   },
   dialogRoot: {
@@ -208,12 +205,13 @@ const styles = StyleSheet.create({
   dialog: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: palette.surfaceRaised,
+    backgroundColor: palette.surface,
     borderRadius: radius.lg,
     padding: spacing.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
+    borderColor: palette.border,
   },
   dialogActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   dialogButton: { flex: 1, height: 46, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  dialogButtonPrimary: { backgroundColor: palette.ink },
 });

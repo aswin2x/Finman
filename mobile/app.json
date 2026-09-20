@@ -6,24 +6,24 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
-    "backgroundColor": "#0A0A0C",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFFFFF",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0A0C"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "space.orbtrix.finman",
-      "userInterfaceStyle": "dark"
+      "userInterfaceStyle": "light"
     },
     "android": {
       "package": "space.orbtrix.finman",
-      "userInterfaceStyle": "dark",
+      "userInterfaceStyle": "light",
       "adaptiveIcon": {
-        "backgroundColor": "#0A0A0C",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

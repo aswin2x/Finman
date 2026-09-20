@@ -1,8 +1,8 @@
 /**
- * Home dashboard.
+ * Home.
  *
- * Hierarchy: who and when, then the one number that matters, then the flow
- * that produced it, then what is coming, then where money went, then the
+ * Reads top to bottom as a briefing: who and when, the one number that
+ * matters, the flow behind it, what is coming, where money went, then the
  * actions that change any of it.
  */
 import { useRouter } from 'expo-router';
@@ -12,16 +12,19 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedNumber } from '../../src/components/AnimatedNumber';
-import { Gradient } from '../../src/components/Gradient';
 import { CashFlowChart } from '../../src/components/CashFlowChart';
 import { Segmented } from '../../src/components/fields';
+import { Icon, type IconName } from '../../src/components/Icon';
 import { CategoryBreakdown } from '../../src/components/ProgressBar';
 import {
   Card,
   DemoBanner,
+  Divider,
   EmptyState,
   ErrorState,
-  GradientCard,
+  FeatureCard,
+  IconButton,
+  Metric,
   PressableScale,
   SectionHeading,
   Skeleton,
@@ -33,13 +36,12 @@ import {
   formatCurrency,
   formatSignedPercent,
   greetingFor,
-  initials,
 } from '../../src/lib/format';
 import { useReducedMotion } from '../../src/lib/motion';
 import { useDashboard } from '../../src/lib/queries';
 import { useAuth } from '../../src/lib/auth';
 import type { UpcomingPayment } from '../../src/lib/types';
-import { gradients, motion, palette, radius, spacing, typography } from '../../src/theme';
+import { fonts, motion, palette, radius, spacing, typography } from '../../src/theme';
 
 const RANGES = [
   { value: 'month', label: 'Month' },
@@ -57,12 +59,9 @@ export default function DashboardScreen() {
   const [sheet, setSheet] = useState<'expense' | 'income' | null>(null);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useDashboard(undefined, range);
+  const onRefresh = useCallback(() => refetch(), [refetch]);
 
-  const onRefresh = useCallback(() => {
-    refetch();
-  }, [refetch]);
-
-  if (isLoading && !data) return <DashboardSkeleton topInset={insets.top} />;
+  if (isLoading && !data) return <HomeSkeleton topInset={insets.top} />;
 
   if (isError && !data) {
     return (
@@ -75,41 +74,25 @@ export default function DashboardScreen() {
 
   const incomeChange = formatSignedPercent(data.income_change_pct);
   const expenseChange = formatSignedPercent(data.expense_change_pct);
+  const settlementNet = data.owed_to_us_total - data.we_owe_total;
 
   return (
     <View style={styles.root}>
-      <Gradient colors={gradients.screen} style={StyleSheet.absoluteFill} />
-
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={palette.ember} />
+          <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={palette.inkTertiary} />
         }
       >
-        {/* Greeting */}
-        <Animated.View
-          entering={reduced ? undefined : FadeInDown.duration(motion.base)}
-          style={styles.header}
-        >
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base)} style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={[typography.body, { color: palette.textSecondary }]}>
+            <Text style={[typography.caption, { color: palette.inkTertiary }]}>
               {greetingFor()}, {data.greeting_name}
             </Text>
-            <Text style={[typography.caption, { color: palette.textTertiary, marginTop: 2 }]}>
-              {data.period_label} · Shared household
-            </Text>
+            <Text style={[typography.title, { color: palette.ink, marginTop: 2 }]}>{data.period_label}</Text>
           </View>
-          <PressableScale
-            onPress={() => router.push('/settings')}
-            accessibilityLabel="Profile and settings"
-          >
-            <View style={[styles.avatar, { borderColor: user?.avatar_color ?? palette.ember }]}>
-              <Text style={[typography.bodyStrong, { color: palette.textPrimary }]}>
-                {initials(data.greeting_name)}
-              </Text>
-            </View>
-          </PressableScale>
+          <IconButton name="settings" accessibilityLabel="Settings" onPress={() => router.push('/settings')} />
         </Animated.View>
 
         {data.is_demo_data ? (
@@ -118,93 +101,106 @@ export default function DashboardScreen() {
           </Animated.View>
         ) : null}
 
-        {/* Balance */}
-        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(60)}>
-          <GradientCard>
-            <Text style={[typography.micro, { color: 'rgba(255,255,255,0.75)' }]}>
-              TOTAL AVAILABLE BALANCE
-            </Text>
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(50)}>
+          <FeatureCard>
+            <Text style={styles.invLabel}>TOTAL AVAILABLE BALANCE</Text>
             <AnimatedNumber
               value={data.available_balance}
-              style={[typography.balance, { color: palette.white, marginTop: spacing.xs }]}
+              style={[typography.display, { color: palette.inkInverse, marginTop: spacing.xs }]}
             />
-            <Text style={[typography.caption, { color: 'rgba(255,255,255,0.7)', marginTop: 2 }]}>
+            <Text style={[typography.caption, { color: palette.inkInverseTertiary, marginTop: 4 }]}>
               Cash position from your records, not a bank balance
             </Text>
 
-            <View style={styles.balanceSplit}>
-              <View style={styles.balanceCell}>
-                <Text style={[typography.micro, { color: 'rgba(255,255,255,0.7)' }]}>INCOME</Text>
+            <View style={styles.featureSplit}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.invLabel}>INCOME</Text>
                 <AnimatedNumber
                   value={data.income}
-                  style={[typography.subheading, { color: palette.white, marginTop: 2 }]}
+                  style={[typography.figureSmall, { color: palette.inkInverse, marginTop: 4 }]}
                 />
                 {incomeChange ? (
-                  <Text style={[typography.micro, { color: 'rgba(255,255,255,0.65)' }]}>
+                  <Text style={[typography.caption, { color: palette.inkInverseTertiary }]}>
                     {incomeChange} vs last month
                   </Text>
                 ) : null}
               </View>
-              <View style={styles.balanceRule} />
-              <View style={styles.balanceCell}>
-                <Text style={[typography.micro, { color: 'rgba(255,255,255,0.7)' }]}>SPENT</Text>
+              <View style={styles.featureRule} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.invLabel}>SPENT</Text>
                 <AnimatedNumber
                   value={data.expenses}
-                  style={[typography.subheading, { color: palette.white, marginTop: 2 }]}
+                  style={[typography.figureSmall, { color: palette.inkInverse, marginTop: 4 }]}
                 />
                 {expenseChange ? (
-                  <Text style={[typography.micro, { color: 'rgba(255,255,255,0.65)' }]}>
+                  <Text style={[typography.caption, { color: palette.inkInverseTertiary }]}>
                     {expenseChange} vs last month
                   </Text>
                 ) : null}
               </View>
             </View>
-          </GradientCard>
+          </FeatureCard>
         </Animated.View>
 
-        {/* Supporting metrics */}
-        <Animated.View
-          entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(100)}
-          style={styles.metricRow}
-        >
-          <MetricTile
-            label="UPCOMING"
-            value={data.upcoming_commitments}
-            caption="next 45 days"
-            tint={palette.warning}
-          />
-          <MetricTile
-            label="OUTSTANDING"
-            value={data.total_outstanding_debt}
-            caption={`${formatCompact(data.monthly_emi_commitment)} a month`}
-            tint={palette.negative}
-          />
-          <MetricTile
-            label="SETTLEMENTS"
-            value={data.owed_to_us_total - data.we_owe_total}
-            caption={data.we_owe_total > data.owed_to_us_total ? 'net owed out' : 'net owed to you'}
-            tint={palette.info}
-            signed
-          />
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(90)}>
+          <Card padded={false}>
+            <View style={styles.metricRow}>
+              <View style={styles.metricCell}>
+                <Metric
+                  label="Upcoming"
+                  value={
+                    <AnimatedNumber
+                      value={data.upcoming_commitments}
+                      format="compact"
+                      style={[typography.figureSmall, { color: palette.ink }]}
+                    />
+                  }
+                  caption="next 45 days"
+                />
+              </View>
+              <View style={styles.metricDivider} />
+              <View style={styles.metricCell}>
+                <Metric
+                  label="Outstanding"
+                  value={
+                    <AnimatedNumber
+                      value={data.total_outstanding_debt}
+                      format="compact"
+                      style={[typography.figureSmall, { color: palette.ink }]}
+                    />
+                  }
+                  caption={`${formatCompact(data.monthly_emi_commitment)} a month`}
+                />
+              </View>
+              <View style={styles.metricDivider} />
+              <View style={styles.metricCell}>
+                <Metric
+                  label="Settlements"
+                  value={
+                    <AnimatedNumber
+                      value={Math.abs(settlementNet)}
+                      format="compact"
+                      style={[typography.figureSmall, { color: palette.ink }]}
+                    />
+                  }
+                  caption={settlementNet < 0 ? 'net owed out' : 'net owed to you'}
+                />
+              </View>
+            </View>
+          </Card>
         </Animated.View>
 
-        {/* Cash flow */}
-        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(140)}>
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(130)}>
           <SectionHeading title="Cash flow" />
           <Card>
-            <Segmented
-              options={RANGES}
-              value={range}
-              onChange={(value) => setRange(value as typeof range)}
-            />
-            <View style={{ marginTop: spacing.md }}>
+            <Segmented options={RANGES} value={range} onChange={(v) => setRange(v as typeof range)} />
+            <View style={{ marginTop: spacing.lg }}>
               <CashFlowChart points={data.cash_flow} />
             </View>
           </Card>
         </Animated.View>
 
-        {/* Upcoming payments */}
-        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(180)}>
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(170)}>
           <SectionHeading
             title="Upcoming payments"
             action={data.upcoming_payments.length > 0 ? 'View all' : undefined}
@@ -212,36 +208,31 @@ export default function DashboardScreen() {
           />
           <Card padded={false}>
             {data.upcoming_payments.length === 0 ? (
-              <View style={{ padding: spacing.lg }}>
-                <Text style={[typography.caption, { color: palette.textTertiary }]}>
-                  Nothing due in the next 45 days.
-                </Text>
-              </View>
+              <Text style={[typography.caption, { color: palette.inkTertiary, padding: spacing.lg }]}>
+                Nothing due in the next 45 days.
+              </Text>
             ) : (
-              data.upcoming_payments
-                .slice(0, 4)
-                .map((item, index) => (
-                  <UpcomingRow
-                    key={`${item.source}-${item.id}`}
-                    item={item}
-                    last={index === Math.min(3, data.upcoming_payments.length - 1)}
-                    onPress={() =>
-                      router.push(
-                        item.source === 'loan'
-                          ? `/loan/${item.id}`
-                          : item.source === 'settlement'
-                            ? `/settlement/${item.id}`
-                            : '/(tabs)/expenses',
-                      )
-                    }
-                  />
-                ))
+              data.upcoming_payments.slice(0, 4).map((item, index, list) => (
+                <UpcomingRow
+                  key={`${item.source}-${item.id}`}
+                  item={item}
+                  last={index === list.length - 1}
+                  onPress={() =>
+                    router.push(
+                      item.source === 'loan'
+                        ? `/loan/${item.id}`
+                        : item.source === 'settlement'
+                          ? `/settlement/${item.id}`
+                          : '/(tabs)/expenses',
+                    )
+                  }
+                />
+              ))
             )}
           </Card>
         </Animated.View>
 
-        {/* Spending overview */}
-        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(220)}>
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(210)}>
           <SectionHeading
             title="Spending overview"
             caption={
@@ -257,66 +248,45 @@ export default function DashboardScreen() {
           </Card>
         </Animated.View>
 
-        {/* Quick actions */}
-        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(260)}>
+        <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(250)}>
           <SectionHeading title="Quick actions" />
           <View style={styles.actionGrid}>
-            <QuickAction label="Expense" tint={palette.ember} onPress={() => setSheet('expense')} />
-            <QuickAction label="Income" tint={palette.positive} onPress={() => setSheet('income')} />
-            <QuickAction label="Payment" tint={palette.warning} onPress={() => router.push('/(tabs)/debts')} />
-            <QuickAction
-              label="Settlement"
-              tint={palette.info}
-              onPress={() => router.push('/settlements')}
-            />
+            <QuickAction label="Expense" icon="expense" onPress={() => setSheet('expense')} />
+            <QuickAction label="Income" icon="income" onPress={() => setSheet('income')} />
+            <QuickAction label="Payment" icon="card" onPress={() => router.push('/(tabs)/debts')} />
+            <QuickAction label="Settle" icon="people" onPress={() => router.push('/settlements')} />
           </View>
         </Animated.View>
 
-        {/* Recent */}
         {data.recent_transactions.length > 0 ? (
-          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(300)}>
+          <Animated.View entering={reduced ? undefined : FadeInDown.duration(motion.base).delay(290)}>
             <SectionHeading
               title="Recent activity"
-              action="All expenses"
+              action="All entries"
               onAction={() => router.push('/(tabs)/expenses')}
             />
             <Card padded={false}>
-              {data.recent_transactions.slice(0, 4).map((txn, index) => (
+              {data.recent_transactions.slice(0, 4).map((txn, index, list) => (
                 <PressableScale
                   key={txn.id}
                   onPress={() => router.push(`/transaction/${txn.id}`)}
                   accessibilityLabel={`${txn.title}, ${formatCurrency(txn.amount)}`}
                 >
-                  <View
-                    style={[
-                      styles.recentRow,
-                      index < Math.min(3, data.recent_transactions.length - 1) && styles.rowBorder,
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.recentDot,
-                        { backgroundColor: txn.category?.color ?? palette.neutral },
-                      ]}
-                    />
+                  <View style={styles.recentRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[typography.body, { color: palette.textPrimary }]} numberOfLines={1}>
+                      <Text style={[typography.body, { color: palette.ink }]} numberOfLines={1}>
                         {txn.title}
                       </Text>
-                      <Text style={[typography.micro, { color: palette.textTertiary, marginTop: 2 }]}>
+                      <Text style={[typography.caption, { color: palette.inkQuaternary, marginTop: 2 }]}>
                         {txn.category?.name ?? 'Uncategorised'} · {txn.user.display_name}
                       </Text>
                     </View>
-                    <Text
-                      style={[
-                        typography.bodyStrong,
-                        { color: txn.type === 'income' ? palette.positive : palette.textPrimary },
-                      ]}
-                    >
-                      {txn.type === 'income' ? '+' : ''}
+                    <Text style={[typography.figureSmall, { color: palette.ink }]}>
+                      {txn.type === 'income' ? '+' : '−'}
                       {formatCurrency(txn.amount)}
                     </Text>
                   </View>
+                  {index < list.length - 1 ? <Divider inset={spacing.md} /> : null}
                 </PressableScale>
               ))}
             </Card>
@@ -324,13 +294,14 @@ export default function DashboardScreen() {
         ) : (
           <EmptyState
             title="No activity yet"
-            message="Record your first expense and the dashboard will fill in."
+            message="Record your first expense and this screen fills in."
             action="Add expense"
             onAction={() => setSheet('expense')}
+            icon="list"
           />
         )}
 
-        <View style={{ height: insets.bottom + spacing.xxl }} />
+        <View style={{ height: insets.bottom + spacing.xl }} />
       </ScrollView>
 
       <TransactionSheet
@@ -343,153 +314,104 @@ export default function DashboardScreen() {
   );
 }
 
-function MetricTile({
-  label,
-  value,
-  caption,
-  tint,
-  signed = false,
-}: {
-  label: string;
-  value: number;
-  caption: string;
-  tint: string;
-  signed?: boolean;
-}) {
-  return (
-    <View style={styles.metricTile}>
-      <View style={[styles.metricBar, { backgroundColor: tint }]} />
-      <Text style={[typography.micro, { color: palette.textTertiary }]}>{label}</Text>
-      <AnimatedNumber
-        value={signed ? Math.abs(value) : value}
-        format="compact"
-        style={[typography.subheading, { color: palette.textPrimary, marginTop: 2 }]}
-      />
-      <Text style={[typography.micro, { color: palette.textTertiary, marginTop: 2 }]} numberOfLines={1}>
-        {caption}
-      </Text>
-    </View>
-  );
-}
-
-function UpcomingRow({
-  item,
-  last,
-  onPress,
-}: {
-  item: UpcomingPayment;
-  last: boolean;
-  onPress: () => void;
-}) {
-  const tint = item.is_overdue ? palette.negative : item.source === 'loan' ? palette.ember : palette.info;
+function UpcomingRow({ item, last, onPress }: { item: UpcomingPayment; last: boolean; onPress: () => void }) {
   return (
     <PressableScale onPress={onPress} accessibilityLabel={`${item.title}, ${formatCurrency(item.amount)}`}>
-      <View style={[styles.upcomingRow, !last && styles.rowBorder]}>
-        <View style={[styles.upcomingMark, { backgroundColor: `${tint}22`, borderColor: `${tint}55` }]}>
-          <View style={[styles.upcomingDot, { backgroundColor: tint }]} />
+      <View style={styles.upcomingRow}>
+        <View style={styles.upcomingIcon}>
+          <Icon
+            name={item.source === 'loan' ? 'card' : item.source === 'settlement' ? 'people' : 'repeat'}
+            size={15}
+            color={palette.inkSecondary}
+          />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[typography.body, { color: palette.textPrimary }]} numberOfLines={1}>
+          <Text style={[typography.body, { color: palette.ink }]} numberOfLines={1}>
             {item.title}
           </Text>
           <Text
             style={[
-              typography.micro,
-              { color: item.is_overdue ? palette.negative : palette.textTertiary, marginTop: 2 },
+              typography.caption,
+              {
+                color: item.is_overdue ? palette.ink : palette.inkQuaternary,
+                fontFamily: item.is_overdue ? fonts.medium : fonts.regular,
+                marginTop: 2,
+              },
             ]}
           >
             {dueLabel(item.days_until, item.is_overdue)}
             {item.subtitle ? ` · ${item.subtitle}` : ''}
           </Text>
         </View>
-        <Text style={[typography.bodyStrong, { color: palette.textPrimary }]}>
-          {formatCurrency(item.amount)}
-        </Text>
+        <Text style={[typography.figureSmall, { color: palette.ink }]}>{formatCurrency(item.amount)}</Text>
+      </View>
+      {!last ? <Divider inset={spacing.md + 34 + spacing.sm} /> : null}
+    </PressableScale>
+  );
+}
+
+function QuickAction({ label, icon, onPress }: { label: string; icon: IconName; onPress: () => void }) {
+  return (
+    <PressableScale onPress={onPress} style={styles.actionCell} accessibilityLabel={label}>
+      <View style={styles.actionInner}>
+        <Icon name={icon} size={17} color={palette.ink} />
+        <Text style={[typography.caption, { color: palette.ink, marginTop: spacing.xs }]}>{label}</Text>
       </View>
     </PressableScale>
   );
 }
 
-function QuickAction({ label, tint, onPress }: { label: string; tint: string; onPress: () => void }) {
+function HomeSkeleton({ topInset }: { topInset: number }) {
   return (
-    <PressableScale onPress={onPress} style={styles.actionCell} accessibilityLabel={`Add ${label}`}>
-      <View style={[styles.actionInner, { borderColor: `${tint}44` }]}>
-        <View style={[styles.actionPlus, { backgroundColor: `${tint}1F` }]}>
-          <Text style={[typography.subheading, { color: tint, lineHeight: 22 }]}>+</Text>
-        </View>
-        <Text style={[typography.caption, { color: palette.textPrimary, marginTop: spacing.xs }]}>{label}</Text>
-      </View>
-    </PressableScale>
-  );
-}
-
-function DashboardSkeleton({ topInset }: { topInset: number }) {
-  return (
-    <View style={[styles.root, { paddingTop: topInset + spacing.md, paddingHorizontal: spacing.lg }]}>
+    <View style={[styles.root, { paddingTop: topInset + spacing.sm, paddingHorizontal: spacing.lg }]}>
       <View style={{ gap: spacing.lg }}>
         <Skeleton height={44} />
-        <Skeleton height={180} />
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <Skeleton height={84} width="32%" />
-          <Skeleton height={84} width="32%" />
-          <Skeleton height={84} width="32%" />
-        </View>
+        <Skeleton height={190} />
+        <Skeleton height={86} />
         <Skeleton height={220} />
-        <Skeleton height={160} />
+        <Skeleton height={150} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.void },
-  content: { paddingHorizontal: spacing.lg, gap: spacing.xl },
+  root: { flex: 1, backgroundColor: palette.page },
+  content: { paddingHorizontal: spacing.lg, gap: spacing.section },
   header: { flexDirection: 'row', alignItems: 'center' },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1.5,
-    backgroundColor: palette.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
+  invLabel: {
+    ...typography.label,
+    color: palette.inkInverseTertiary,
+    textTransform: 'uppercase',
   },
-  balanceSplit: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg },
-  balanceCell: { flex: 1 },
-  balanceRule: { width: StyleSheet.hairlineWidth, height: 36, backgroundColor: 'rgba(255,255,255,0.28)', marginHorizontal: spacing.md },
-  metricRow: { flexDirection: 'row', gap: spacing.sm },
-  metricTile: {
-    flex: 1,
-    backgroundColor: palette.surface,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    paddingTop: spacing.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: palette.hairline,
-    overflow: 'hidden',
+  featureSplit: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl },
+  featureRule: {
+    width: StyleSheet.hairlineWidth,
+    height: 40,
+    backgroundColor: palette.borderInverse,
+    marginHorizontal: spacing.md,
   },
-  metricBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 2, opacity: 0.85 },
+  metricRow: { flexDirection: 'row', paddingVertical: spacing.md },
+  metricCell: { flex: 1, paddingHorizontal: spacing.md },
+  metricDivider: { width: StyleSheet.hairlineWidth, backgroundColor: palette.border },
   upcomingRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm },
-  upcomingMark: {
+  upcomingIcon: {
     width: 34,
     height: 34,
-    borderRadius: 17,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.pill,
+    backgroundColor: palette.surfaceSunken,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  upcomingDot: { width: 7, height: 7, borderRadius: 4 },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.hairline },
   recentRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.sm },
-  recentDot: { width: 8, height: 8, borderRadius: 4 },
   actionGrid: { flexDirection: 'row', gap: spacing.sm },
   actionCell: { flex: 1 },
   actionInner: {
     backgroundColor: palette.surface,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: palette.border,
     paddingVertical: spacing.md,
     alignItems: 'center',
   },
-  actionPlus: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
 });
