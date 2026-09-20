@@ -12,7 +12,7 @@ finman/
 │   │   ├── schemas/  Pydantic request and response contracts
 │   │   ├── routers/  HTTP endpoints
 │   │   └── services/ financial calculations and aggregations
-│   └── tests/        108 tests covering the money maths
+│   └── tests/        144 tests covering the money maths
 └── mobile/           Expo + React Native + TypeScript
     ├── app/          Expo Router screens
     └── src/
