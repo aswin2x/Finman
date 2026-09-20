@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Finman",
+    "slug": "finman",
+    "scheme": "finman",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0A0A0C",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0C"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "space.orbtrix.finman",
+      "userInterfaceStyle": "dark"
+    },
+    "android": {
+      "package": "space.orbtrix.finman",
+      "userInterfaceStyle": "dark",
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0A0C",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {}
+  }
+}

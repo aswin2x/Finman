@@ -1,55 +1,48 @@
-# Prerequisites
-*.d
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.db
+*.sqlite3
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# Environment
+.env
+.env.*
+!.env.example
 
-# Linker output
-*.ilk
-*.map
-*.exp
+# Node
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
-# Precompiled Headers
-*.gch
-*.pch
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
 
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
+# Native builds
+/mobile/ios/
+/mobile/android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
 
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
 
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
-# debug information files
-*.dwo
+# TypeScript
+*.tsbuildinfo
